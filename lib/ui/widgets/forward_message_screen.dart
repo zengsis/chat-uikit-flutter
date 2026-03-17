@@ -132,6 +132,7 @@ class _ForwardMessageScreenState extends TIMUIKitState<ForwardMessageScreen> {
       );
     }
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
         centerTitle: true,
         title: Text(
@@ -142,8 +143,17 @@ class _ForwardMessageScreenState extends TIMUIKitState<ForwardMessageScreen> {
           ),
         ),
         shadowColor: theme.weakBackgroundColor,
-        backgroundColor: theme.appbarBgColor ?? theme.primaryColor,
-        leadingWidth: 140,
+        backgroundColor: Colors.white,
+        iconTheme: const IconThemeData(color: Colors.black),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1), // 分割线高度
+          child: Container(
+            color: theme.weakDividerColor, // 使用你的主题分割线颜色
+            height: 1,
+          ),
+        ),
+        // leadingWidth 过大时，title 会在“剩余空间”内居中，视觉上不在屏幕正中
+        leadingWidth: 80,
         leading: TextButton(
           onPressed: () {
             if (isMultiSelect) {
@@ -161,20 +171,24 @@ class _ForwardMessageScreenState extends TIMUIKitState<ForwardMessageScreen> {
             }
           },
           style: TextButton.styleFrom(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.only(left: 16, right: 8),
             minimumSize: const Size(0, 0),
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             alignment: Alignment.centerLeft,
             visualDensity: VisualDensity.compact,
           ),
-          child: Text(
-            TIM_t("取消"),
-            maxLines: 1,
-            softWrap: false,
-            overflow: TextOverflow.clip,
-            style: TextStyle(
-              color: theme.appbarTextColor,
-              fontSize: 14,
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              TIM_t("取消"),
+              maxLines: 1,
+              softWrap: false,
+              overflow: TextOverflow.visible,
+              style: TextStyle(
+                color: Colors.black,
+                fontSize: 16,
+              ),
             ),
           ),
         ),
@@ -189,11 +203,18 @@ class _ForwardMessageScreenState extends TIMUIKitState<ForwardMessageScreen> {
                 handleForwardMessage();
               }
             },
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.only(left: 8, right: 16),
+              minimumSize: const Size(0, 0),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              alignment: Alignment.centerRight,
+              visualDensity: VisualDensity.compact,
+            ),
             child: Text(
               !isMultiSelect ? TIM_t("多选") : TIM_t("完成"),
               style: TextStyle(
-                color: theme.appbarTextColor,
-                fontSize: 14,
+                color: Colors.black,
+                fontSize: 16,
               ),
             ),
           )

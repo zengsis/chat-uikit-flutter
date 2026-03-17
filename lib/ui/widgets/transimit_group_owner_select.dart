@@ -126,7 +126,7 @@ class _SelectNewGroupOwner extends TIMUIKitState<SelectNewGroupOwner> {
                   Navigator.pop(context);
                 },
                 style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  padding: const EdgeInsets.only(left: 16, right: 8),
                   minimumSize: const Size(0, 0),
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   alignment: Alignment.centerLeft,
@@ -150,6 +150,13 @@ class _SelectNewGroupOwner extends TIMUIKitState<SelectNewGroupOwner> {
                       Navigator.pop(context, selectedMember);
                     }
                   },
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.only(left: 8, right: 16),
+                    minimumSize: const Size(0, 0),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    alignment: Alignment.centerRight,
+                    visualDensity: VisualDensity.compact,
+                  ),
                   child: Text(
                     TIM_t("完成"),
                     style: TextStyle(
@@ -160,12 +167,13 @@ class _SelectNewGroupOwner extends TIMUIKitState<SelectNewGroupOwner> {
                 )
               ],
               centerTitle: true,
-              leadingWidth: 140,
+              // leadingWidth 过大时，title 会在“剩余空间”内居中，视觉上不在屏幕正中
+              leadingWidth: 80,
               title: Text(
                 "转让群主",
                 style: TextStyle(
                   color: theme.appbarTextColor,
-                  fontSize: 16,
+                  fontSize: 17,
                 ),
               ),
             ),
