@@ -20,16 +20,16 @@ class TIMUIKitAppBarTitle extends StatelessWidget {
       required this.fromUser, this.onClick})
       : super(key: key);
 
-  Widget titleText(String text){
+  Widget titleText(BuildContext context, String text) {
+    final resolvedStyle = textStyle ??
+        Theme.of(context).appBarTheme.titleTextStyle ??
+        Theme.of(context).textTheme.titleLarge ??
+        const TextStyle(fontSize: 16);
     return InkWell(
       onTapDown: onClick,
       child: Text(
         text,
-        style: textStyle ??
-            const TextStyle(
-              color: Colors.white,
-              fontSize: 17,
-            ),
+        style: resolvedStyle,
       ),
     );
   }
@@ -43,18 +43,16 @@ class TIMUIKitAppBarTitle extends StatelessWidget {
       if (title != null) {
         return title!;
       }
-      return titleText(conversationShowName,);
+      return titleText(context, conversationShowName);
     } else {
       if (showC2cMessageEditStatus) {
-        return titleText(
-          TIM_t("对方正在输入中..."),);
+        return titleText(context, TIM_t("对方正在输入中..."));
 
       } else {
         if (title != null) {
           return title!;
         }
-        return titleText(
-          conversationShowName,);
+        return titleText(context, conversationShowName);
 
       }
     }

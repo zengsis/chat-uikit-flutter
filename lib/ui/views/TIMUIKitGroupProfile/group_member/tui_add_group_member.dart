@@ -36,6 +36,11 @@ class _AddGroupMemberPageState extends TIMUIKitState<AddGroupMemberPage> {
   Widget tuiBuild(BuildContext context, TUIKitBuildValue value) {
     final TUITheme theme = value.theme;
 
+    final resolvedTitleStyle = (Theme.of(context).appBarTheme.titleTextStyle ??
+            Theme.of(context).textTheme.titleLarge ??
+            const TextStyle(fontSize: 16))
+        .copyWith(color: Colors.black);
+
     return TUIKitScreenUtils.getDeviceWidget(
         context: context,
         desktopWidget: Container(
@@ -63,7 +68,7 @@ class _AddGroupMemberPageState extends TIMUIKitState<AddGroupMemberPage> {
                   alignment: Alignment.center,
                   child: Text(
                     TIM_t("添加群成员"),
-                    style: const TextStyle(color: Colors.black, fontSize: 17),
+                    style: resolvedTitleStyle,
                   ),
                 ),
                 leading: IconButton(

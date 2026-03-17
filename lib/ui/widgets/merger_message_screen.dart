@@ -292,6 +292,11 @@ class MergerMessageScreenState extends TIMUIKitState<MergerMessageScreen> {
 
     final isDesktopScreen = TUIKitScreenUtils.getFormFactor(context) == DeviceType.Desktop;
 
+    final resolvedTitleStyle = (Theme.of(context).appBarTheme.titleTextStyle ??
+            Theme.of(context).textTheme.titleLarge ??
+            const TextStyle(fontSize: 16))
+        .copyWith(color: theme.appbarTextColor);
+
     Widget messageListPage() {
       return messageList.isEmpty
           ? Row(
@@ -337,7 +342,7 @@ class MergerMessageScreenState extends TIMUIKitState<MergerMessageScreen> {
               centerTitle: true,
               title: Text(
                 TIM_t("聊天记录"),
-                style: TextStyle(color: theme.appbarTextColor, fontSize: 17),
+                style: resolvedTitleStyle,
               ),
               leading: IconButton(
                 icon: Image.asset(

@@ -119,6 +119,24 @@ class _TIMUIKitAppBarState extends TIMUIKitState<TIMUIKitAppBar> {
     return unreadCount < 99 ? unreadCount.toString() : "99";
   }
 
+  TextStyle _resolveAppBarTextStyle(BuildContext context, TUITheme theme) {
+    final setAppbar = widget.config;
+
+    // 优先级：
+    // 1) 外部显式传入的 AppBar.titleTextStyle（用于单页覆盖）
+    // 2) 全局 ThemeData.appBarTheme.titleTextStyle（用于全局统一）
+    // 3) Material3 默认 titleLarge / Material2 默认 headline6 的等价映射
+    final base = setAppbar?.titleTextStyle ??
+        Theme.of(context).appBarTheme.titleTextStyle ??
+        Theme.of(context).textTheme.titleLarge ??
+        const TextStyle(fontSize: 16);
+
+    // SDK 的主题色仍然保留，但不再写死字号
+    return base.copyWith(
+      color: theme.appbarTextColor ?? hexToColor("010000"),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -177,6 +195,8 @@ class _TIMUIKitAppBarState extends TIMUIKitState<TIMUIKitAppBar> {
     final isDesktopScreen =
         TUIKitScreenUtils.getFormFactor(context) == DeviceType.Desktop;
 
+    final resolvedTitleStyle = _resolveAppBarTextStyle(context, theme);
+
     // 通过收紧按钮内边距/必要时缩放文字来保证“取消”完整展示。
     final double leadingWidth =
         setAppbar?.leadingWidth ?? (isDesktopScreen ? 8 : 70);
@@ -209,8 +229,7 @@ class _TIMUIKitAppBarState extends TIMUIKitState<TIMUIKitAppBar> {
         child: TIMUIKitAppBarTitle(
           title: setAppbar?.title,
           onClick: widget.onClickTitle,
-          textStyle: TextStyle(
-              color: theme.appbarTextColor ?? hexToColor("010000"), fontSize: 16),
+          textStyle: resolvedTitleStyle,
           conversationShowName: _conversationShowName,
           showC2cMessageEditStatus: widget.showC2cMessageEditStatus,
           fromUser: widget.conversationID,
@@ -242,10 +261,7 @@ class _TIMUIKitAppBarState extends TIMUIKitState<TIMUIKitAppBar> {
                         maxLines: 1,
                         softWrap: false,
                         overflow: TextOverflow.visible,
-                        style: TextStyle(
-                          color: theme.appbarTextColor ?? hexToColor("010000"),
-                          fontSize: 16,
-                        ),
+                        style: resolvedTitleStyle,
                       ),
                     ),
                   )

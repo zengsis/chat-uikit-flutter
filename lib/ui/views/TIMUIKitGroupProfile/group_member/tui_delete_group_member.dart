@@ -81,6 +81,11 @@ class _DeleteGroupMemberPageState extends TIMUIKitState<DeleteGroupMemberPage> {
   Widget tuiBuild(BuildContext context, TUIKitBuildValue value) {
     final TUITheme theme = value.theme;
 
+    final resolvedTitleStyle = (Theme.of(context).appBarTheme.titleTextStyle ??
+            Theme.of(context).textTheme.titleLarge ??
+            const TextStyle(fontSize: 16))
+        .copyWith(color: theme.appbarTextColor);
+
     return TUIKitScreenUtils.getDeviceWidget(
         context: context,
         desktopWidget: Container(
@@ -101,7 +106,7 @@ class _DeleteGroupMemberPageState extends TIMUIKitState<DeleteGroupMemberPage> {
                   alignment: Alignment.center,
                   child: Text(
                     TIM_t("删除群成员"),
-                    style: TextStyle(color: theme.appbarTextColor, fontSize: 17),
+                    style: resolvedTitleStyle,
                   ),
                 ),
                 leading: IconButton(
