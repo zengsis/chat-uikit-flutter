@@ -20,8 +20,8 @@ class CommonColor {
   static const textgrey = Color(0xFFAEA4A3);
 
   static const defaultTheme = TUITheme(
-    weakBackgroundColor: Color(0xFFEDEDED),
-    weakDividerColor: Color(0xFFE5E6E9),
+    weakBackgroundColor: Color(0xFFF2F3F5), // 背景
+    weakDividerColor: Color(0xFFF2F3F5), // 分割线
     primaryColor: Color(0xFF147AFF),
     secondaryColor: Color(0xFF147AFF),
     infoColor: Color(0xFFFF9C19),
@@ -33,5 +33,6 @@ class CommonColor {
     adminColor: Colors.blue,
     inputFillColor: Color.fromARGB(0, 242, 243, 245),
     textgrey: Color(0xFFAEA4A3),
+    appbarBgColor: Colors.white,
   );
 }

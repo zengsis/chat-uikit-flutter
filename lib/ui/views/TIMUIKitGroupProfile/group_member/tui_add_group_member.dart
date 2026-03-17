@@ -39,9 +39,10 @@ class _AddGroupMemberPageState extends TIMUIKitState<AddGroupMemberPage> {
     return TUIKitScreenUtils.getDeviceWidget(
         context: context,
         desktopWidget: Container(
+          color: Colors.white,
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: ContactList(
-            bgColor: theme.wideBackgroundColor,
+            bgColor: Colors.white,
             groupMemberList: widget.model.groupMemberList,
             contactList: widget.model.contactList,
             isCanSelectMemberItem: true,
@@ -51,31 +52,41 @@ class _AddGroupMemberPageState extends TIMUIKitState<AddGroupMemberPage> {
           ),
         ),
         defaultWidget: Scaffold(
+            backgroundColor: theme.weakBackgroundColor, // 页面背景色
             appBar: AppBar(
-                title: Text(
-                  TIM_t("添加群成员"),
-                  style: TextStyle(color: theme.appbarTextColor, fontSize: 17),
+                elevation: 1,
+                backgroundColor: Colors.white,
+                iconTheme: const IconThemeData(
+                  color: Colors.black, // iOS 风格深色返回箭头
+                ),
+                title: Align(
+                  alignment: Alignment.center,
+                  child: Text(
+                    TIM_t("添加群成员"),
+                    style: const TextStyle(color: Colors.black, fontSize: 17),
+                  ),
+                ),
+                leading: IconButton(
+                  icon: const Icon(Icons.arrow_back_ios, color: Colors.black, size: 20),
+                  onPressed: () => Navigator.of(context).pop(),
                 ),
                 actions: [
                   TextButton(
                     onPressed: () async {
                       submitAdd();
                     },
-                    child: Text(
-                      TIM_t("确定"),
+                    child: const Text(
+                      "确定",
                       style: TextStyle(
-                        color: theme.appbarTextColor,
+                        color: Colors.black,
                         fontSize: 16,
                       ),
                     ),
                   )
                 ],
-                shadowColor: theme.weakDividerColor,
-                backgroundColor: theme.appbarBgColor ?? theme.primaryColor,
-                iconTheme: IconThemeData(
-                  color: theme.appbarTextColor,
-                )),
+                shadowColor: theme.weakDividerColor),
             body: ContactList(
+              bgColor: Colors.white,
               groupMemberList: widget.model.groupMemberList,
               contactList: widget.model.contactList,
               isCanSelectMemberItem: true,

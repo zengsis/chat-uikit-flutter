@@ -177,10 +177,9 @@ class _TIMUIKitAppBarState extends TIMUIKitState<TIMUIKitAppBar> {
     final isDesktopScreen =
         TUIKitScreenUtils.getFormFactor(context) == DeviceType.Desktop;
     return AppBar(
-      backgroundColor: setAppbar?.backgroundColor ??
-          theme.chatHeaderBgColor ??
-          theme.appbarBgColor ??
-          theme.primaryColor,
+      // 统一默认导航栏背景为白色，如需自定义可通过 config.backgroundColor 传入
+      backgroundColor:
+          setAppbar?.backgroundColor ?? Colors.white,
       actionsIconTheme: setAppbar?.actionsIconTheme,
       foregroundColor: setAppbar?.foregroundColor,
       elevation: setAppbar?.elevation ?? (isDesktopScreen ? 0 : 1),
@@ -198,16 +197,19 @@ class _TIMUIKitAppBarState extends TIMUIKitState<TIMUIKitAppBar> {
       // textTheme: setAppbar?.textTheme,
       iconTheme: setAppbar?.iconTheme ??
           const IconThemeData(
-            color: Colors.white,
+            color: Colors.black,
           ),
-      title: TIMUIKitAppBarTitle(
-        title: setAppbar?.title,
-        onClick: widget.onClickTitle,
-        textStyle: TextStyle(
-            color: theme.appbarTextColor ?? hexToColor("010000"), fontSize: 16),
-        conversationShowName: _conversationShowName,
-        showC2cMessageEditStatus: widget.showC2cMessageEditStatus,
-        fromUser: widget.conversationID,
+      title: Align(
+        alignment: Alignment.center,
+        child: TIMUIKitAppBarTitle(
+          title: setAppbar?.title,
+          onClick: widget.onClickTitle,
+          textStyle: TextStyle(
+              color: theme.appbarTextColor ?? hexToColor("010000"), fontSize: 16),
+          conversationShowName: _conversationShowName,
+          showC2cMessageEditStatus: widget.showC2cMessageEditStatus,
+          fromUser: widget.conversationID,
+        ),
       ),
       centerTitle: setAppbar?.centerTitle ?? (isDesktopScreen ? false : true),
       leadingWidth: setAppbar?.leadingWidth ?? (isDesktopScreen ? 8 : 70),
@@ -236,11 +238,7 @@ class _TIMUIKitAppBarState extends TIMUIKitState<TIMUIKitAppBar> {
                               IconButton(
                                 padding: const EdgeInsets.only(left: 16),
                                 constraints: const BoxConstraints(),
-                                icon: Icon(
-                                  Icons.arrow_back_ios,
-                                  color: hexToColor("010000"),
-                                  size: 17,
-                                ),
+                                icon: const Icon(Icons.arrow_back_ios, color: Colors.black, size: 20),
                                 onPressed: () async {
                                   chatVM.repliedMessage = null;
                                   Navigator.pop(context);

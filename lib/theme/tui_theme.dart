@@ -27,7 +27,7 @@ class TUITheme {
     this.selectPanelTextIconColor = const Color(0xFF37393F),
 
     /// Appbar 背景颜色
-    this.appbarBgColor = const Color(0xFFF2F3F5),
+    this.appbarBgColor = const Color(0xFFFFFFFF),
 
     /// Appbar 文字颜色
     this.appbarTextColor = const Color(0xFF010000),

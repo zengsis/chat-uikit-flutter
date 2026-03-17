@@ -127,7 +127,9 @@ class _ContactListState extends TIMUIKitState<ContactList> {
     return Container(
       padding: const EdgeInsets.only(top: 8, left: 16, right: 12),
       decoration: BoxDecoration(
-          border: Border(bottom: BorderSide(color: theme.weakDividerColor ?? CommonColor.weakDividerColor))),
+          border: Border(bottom: BorderSide(color: theme.weakDividerColor ?? CommonColor.weakDividerColor)),
+          color: Colors.white
+      ),
       child: Row(
         children: [
           if (widget.isCanSelectMemberItem)

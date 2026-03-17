@@ -125,9 +125,12 @@ class TUIKitWidePopup {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 mainAxisSize: MainAxisSize.max,
                 children: [
-                  Text(
-                    title,
-                    style: TextStyle(fontSize: 18, color: theme?.darkTextColor ?? const Color(0xFF444444)),
+                  Align(
+                    alignment: Alignment.center,
+                    child: Text(
+                      title,
+                      style: TextStyle(fontSize: 18, color: theme?.darkTextColor ?? const Color(0xFF444444)),
+                    ),
                   ),
                   InkWell(
                     onTap: () {
