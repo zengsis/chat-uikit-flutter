@@ -176,6 +176,11 @@ class _TIMUIKitAppBarState extends TIMUIKitState<TIMUIKitAppBar> {
         Provider.of<TUIChatSeparateViewModel>(context);
     final isDesktopScreen =
         TUIKitScreenUtils.getFormFactor(context) == DeviceType.Desktop;
+
+    // 通过收紧按钮内边距/必要时缩放文字来保证“取消”完整展示。
+    final double leadingWidth =
+        setAppbar?.leadingWidth ?? (isDesktopScreen ? 8 : 70);
+
     return AppBar(
       // 统一默认导航栏背景为白色，如需自定义可通过 config.backgroundColor 传入
       backgroundColor:
@@ -212,7 +217,7 @@ class _TIMUIKitAppBarState extends TIMUIKitState<TIMUIKitAppBar> {
         ),
       ),
       centerTitle: setAppbar?.centerTitle ?? (isDesktopScreen ? false : true),
-      leadingWidth: setAppbar?.leadingWidth ?? (isDesktopScreen ? 8 : 70),
+      leadingWidth: leadingWidth,
       leading: Selector<TUIChatGlobalModel, Tuple2<bool, int>>(
           builder: (context, data, _) {
             final isMultiSelect = data.item1;
@@ -222,11 +227,25 @@ class _TIMUIKitAppBarState extends TIMUIKitState<TIMUIKitAppBar> {
                     onPressed: () {
                       chatVM.updateMultiSelectStatus(false);
                     },
-                    child: Text(
-                      TIM_t('取消'),
-                      style: TextStyle(
-                        color: theme.appbarTextColor ?? hexToColor("010000"),
-                        fontSize: 16,
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.only(left: 16),
+                      minimumSize: const Size(0, 0),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      alignment: Alignment.centerLeft,
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.center,
+                      child: Text(
+                        TIM_t('取消'),
+                        maxLines: 1,
+                        softWrap: false,
+                        overflow: TextOverflow.visible,
+                        style: TextStyle(
+                          color: theme.appbarTextColor ?? hexToColor("010000"),
+                          fontSize: 16,
+                        ),
                       ),
                     ),
                   )

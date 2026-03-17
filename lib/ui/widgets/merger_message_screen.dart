@@ -77,20 +77,25 @@ class MergerMessageScreenState extends TIMUIKitState<MergerMessageScreen> {
     switch (type) {
       case MessageElemType.V2TIM_ELEM_TYPE_CUSTOM:
         if (widget.messageItemBuilder?.customMessageItemBuilder != null) {
-          return widget.messageItemBuilder!.customMessageItemBuilder!(
+          final built = widget.messageItemBuilder!.customMessageItemBuilder!(
             message,
             false,
             () {},
-          )!;
+          );
+          if (built != null) return built;
         }
         return Text(TIM_t("[自定义]"));
       case MessageElemType.V2TIM_ELEM_TYPE_SOUND:
         if (widget.messageItemBuilder?.soundMessageItemBuilder != null) {
-          return widget.messageItemBuilder!.soundMessageItemBuilder!(
+          final built = widget.messageItemBuilder!.soundMessageItemBuilder!(
             message,
             false,
             () {},
-          )!;
+          );
+          if (built != null) return built;
+        }
+        if (message.soundElem == null) {
+          return Text(TIM_t("[语音]"));
         }
         return TIMUIKitSoundElem(
             chatModel: widget.model,
@@ -103,11 +108,12 @@ class MergerMessageScreenState extends TIMUIKitState<MergerMessageScreen> {
       case MessageElemType.V2TIM_ELEM_TYPE_TEXT:
         if (isReplyMessage(message)) {
           if (widget.messageItemBuilder?.textReplyMessageItemBuilder != null) {
-            return widget.messageItemBuilder!.textReplyMessageItemBuilder!(
+            final built = widget.messageItemBuilder!.textReplyMessageItemBuilder!(
               message,
               false,
               () {},
-            )!;
+            );
+            if (built != null) return built;
           }
           return TIMUIKitReplyElem(
               isShowMessageReaction: false,
@@ -117,11 +123,12 @@ class MergerMessageScreenState extends TIMUIKitState<MergerMessageScreen> {
               clearJump: () {});
         }
         if (widget.messageItemBuilder?.textMessageItemBuilder != null) {
-          return widget.messageItemBuilder!.textMessageItemBuilder!(
+          final built = widget.messageItemBuilder!.textMessageItemBuilder!(
             message,
             false,
             () {},
-          )!;
+          );
+          if (built != null) return built;
         }
         return TIMUIKitTextElem(
           chatModel: widget.model,
@@ -133,11 +140,12 @@ class MergerMessageScreenState extends TIMUIKitState<MergerMessageScreen> {
         );
       case MessageElemType.V2TIM_ELEM_TYPE_FACE:
         if (widget.messageItemBuilder?.faceMessageItemBuilder != null) {
-          return widget.messageItemBuilder!.faceMessageItemBuilder!(
+          final built = widget.messageItemBuilder!.faceMessageItemBuilder!(
             message,
             false,
             () {},
-          )!;
+          );
+          if (built != null) return built;
         }
         return TIMUIKitFaceElem(
             model: widget.model,
@@ -147,11 +155,12 @@ class MergerMessageScreenState extends TIMUIKitState<MergerMessageScreen> {
             message: message);
       case MessageElemType.V2TIM_ELEM_TYPE_FILE:
         if (widget.messageItemBuilder?.fileMessageItemBuilder != null) {
-          return widget.messageItemBuilder!.fileMessageItemBuilder!(
+          final built = widget.messageItemBuilder!.fileMessageItemBuilder!(
             message,
             false,
             () {},
-          )!;
+          );
+          if (built != null) return built;
         }
         return TIMUIKitFileElem(
             chatModel: widget.model,
@@ -163,11 +172,12 @@ class MergerMessageScreenState extends TIMUIKitState<MergerMessageScreen> {
             isShowJump: false);
       case MessageElemType.V2TIM_ELEM_TYPE_IMAGE:
         if (widget.messageItemBuilder?.imageMessageItemBuilder != null) {
-          return widget.messageItemBuilder!.imageMessageItemBuilder!(
+          final built = widget.messageItemBuilder!.imageMessageItemBuilder!(
             message,
             false,
             () {},
-          )!;
+          );
+          if (built != null) return built;
         }
         return TIMUIKitImageElem(
           chatModel: widget.model,
@@ -178,29 +188,35 @@ class MergerMessageScreenState extends TIMUIKitState<MergerMessageScreen> {
         );
       case MessageElemType.V2TIM_ELEM_TYPE_VIDEO:
         if (widget.messageItemBuilder?.videoMessageItemBuilder != null) {
-          return widget.messageItemBuilder!.videoMessageItemBuilder!(
+          final built = widget.messageItemBuilder!.videoMessageItemBuilder!(
             message,
             false,
             () {},
-          )!;
+          );
+          if (built != null) return built;
         }
         return TIMUIKitVideoElem(message, chatModel: widget.model, isFrom: "merger", isShowMessageReaction: false);
       case MessageElemType.V2TIM_ELEM_TYPE_LOCATION:
         if (widget.messageItemBuilder?.locationMessageItemBuilder != null) {
-          return widget.messageItemBuilder!.locationMessageItemBuilder!(
+          final built = widget.messageItemBuilder!.locationMessageItemBuilder!(
             message,
             false,
             () {},
-          )!;
+          );
+          if (built != null) return built;
         }
         return Text(TIM_t("[位置]"));
       case MessageElemType.V2TIM_ELEM_TYPE_MERGER:
         if (widget.messageItemBuilder?.mergerMessageItemBuilder != null) {
-          return widget.messageItemBuilder!.mergerMessageItemBuilder!(
+          final built = widget.messageItemBuilder!.mergerMessageItemBuilder!(
             message,
             false,
             () {},
-          )!;
+          );
+          if (built != null) return built;
+        }
+        if (message.mergerElem == null) {
+          return Text(TIM_t("[聊天记录]"));
         }
         return TIMUIKitMergerElem(
             model: widget.model,
@@ -209,7 +225,7 @@ class MergerMessageScreenState extends TIMUIKitState<MergerMessageScreen> {
             message: message,
             mergerElem: message.mergerElem!,
             isSelf: isFromSelf,
-            messageID: message.msgID!);
+            messageID: message.msgID ?? "");
       default:
         return Text(TIM_t("未知消息"));
     }
@@ -316,10 +332,28 @@ class MergerMessageScreenState extends TIMUIKitState<MergerMessageScreen> {
           child: messageListPage(),
         ),
         defaultWidget: Scaffold(
+          backgroundColor: Colors.white,
           appBar: AppBar(
+              centerTitle: true,
               title: Text(
                 TIM_t("聊天记录"),
                 style: TextStyle(color: theme.appbarTextColor, fontSize: 17),
+              ),
+              leading: IconButton(
+                icon: Image.asset(
+                  'images/arrow_back_black.png',
+                  width: 20,
+                  height: 20,
+                  package: 'tencent_cloud_chat_uikit',
+                ),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+              bottom: PreferredSize(
+                preferredSize: const Size.fromHeight(1), // 分割线高度
+                child: Container(
+                  color: theme.weakDividerColor, // 使用你的主题分割线颜色
+                  height: 1,
+                ),
               ),
               shadowColor: theme.weakDividerColor,
               backgroundColor: theme.appbarBgColor ?? theme.primaryColor,

@@ -17,6 +17,10 @@ import 'package:tencent_cloud_chat_uikit/theme/tui_theme.dart';
 
 class MultiSelectPanel extends TIMUIKitStatelessWidget {
   final int forwardMsgNumLimit = 30;
+  static const EdgeInsets _compactIconPadding = EdgeInsets.zero;
+  static const BoxConstraints _compactIconConstraints =
+      BoxConstraints(minWidth: 36, minHeight: 36);
+  static const VisualDensity _compactVisualDensity = VisualDensity.compact;
 
   final ConvType conversationType;
 
@@ -145,10 +149,20 @@ class MultiSelectPanel extends TIMUIKitStatelessWidget {
                 child: Column(
                   children: [
                     IconButton(
-                      icon: Image.asset('images/forward.png',
+                      icon: SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: Image.asset(
+                          'images/forward.png',
                           package: 'tencent_cloud_chat_uikit',
-                          color: theme.selectPanelTextIconColor),
-                      iconSize: 24,
+                          color: theme.selectPanelTextIconColor,
+                          fit: BoxFit.contain,
+                        ),
+                      ),
+                      padding: _compactIconPadding,
+                      constraints: _compactIconConstraints,
+                      visualDensity: _compactVisualDensity,
+                      iconSize: 20,
                       onPressed: () {
                         _handleForwardMessageWide(context, false, model);
                       },
@@ -163,10 +177,20 @@ class MultiSelectPanel extends TIMUIKitStatelessWidget {
                 child: Column(
                   children: [
                     IconButton(
-                      icon: Image.asset('images/merge_forward.png',
+                      icon: SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: Image.asset(
+                          'images/merge_forward.png',
                           package: 'tencent_cloud_chat_uikit',
-                          color: theme.selectPanelTextIconColor),
-                      iconSize: 24,
+                          color: theme.selectPanelTextIconColor,
+                          fit: BoxFit.contain,
+                        ),
+                      ),
+                      padding: _compactIconPadding,
+                      constraints: _compactIconConstraints,
+                      visualDensity: _compactVisualDensity,
+                      iconSize: 20,
                       onPressed: () {
                         _handleForwardMessageWide(context, true, model);
                       },
@@ -183,10 +207,20 @@ class MultiSelectPanel extends TIMUIKitStatelessWidget {
                 child: Column(
                   children: [
                     IconButton(
-                      icon: Image.asset('images/delete.png',
+                      icon: SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: Image.asset(
+                          'images/delete.png',
                           package: 'tencent_cloud_chat_uikit',
-                          color: theme.selectPanelTextIconColor),
-                      iconSize: 24,
+                          color: theme.selectPanelTextIconColor,
+                          fit: BoxFit.contain,
+                        ),
+                      ),
+                      padding: _compactIconPadding,
+                      constraints: _compactIconConstraints,
+                      visualDensity: _compactVisualDensity,
+                      iconSize: 20,
                       onPressed: () {
                         TUIKitWidePopup.showSecondaryConfirmDialog(
                             operationKey: TUIKitWideModalOperationKey
@@ -238,10 +272,20 @@ class MultiSelectPanel extends TIMUIKitStatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   IconButton(
-                    icon: Image.asset('images/forward.png',
+                    icon: SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: Image.asset(
+                        'images/forward.png',
                         package: 'tencent_cloud_chat_uikit',
-                        color: theme.selectPanelTextIconColor),
-                    iconSize: 28,
+                        color: theme.selectPanelTextIconColor,
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                    padding: _compactIconPadding,
+                    constraints: _compactIconConstraints,
+                    visualDensity: _compactVisualDensity,
+                    iconSize: 22,
                     onPressed: () {
                       _handleForwardMessage(context, false, model);
                     },
@@ -257,10 +301,20 @@ class MultiSelectPanel extends TIMUIKitStatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   IconButton(
-                    icon: Image.asset('images/merge_forward.png',
+                    icon: SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: Image.asset(
+                        'images/merge_forward.png',
                         package: 'tencent_cloud_chat_uikit',
-                        color: theme.selectPanelTextIconColor),
-                    iconSize: 28,
+                        color: theme.selectPanelTextIconColor,
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                    padding: _compactIconPadding,
+                    constraints: _compactIconConstraints,
+                    visualDensity: _compactVisualDensity,
+                    iconSize: 22,
                     onPressed: () {
                       _handleForwardMessage(context, true, model);
                     },
@@ -278,10 +332,20 @@ class MultiSelectPanel extends TIMUIKitStatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 IconButton(
-                  icon: Image.asset('images/delete.png',
+                  icon: SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: Image.asset(
+                      'images/delete.png',
                       package: 'tencent_cloud_chat_uikit',
-                      color: theme.selectPanelTextIconColor),
-                  iconSize: 28,
+                      color: theme.selectPanelTextIconColor,
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                  padding: _compactIconPadding,
+                  constraints: _compactIconConstraints,
+                  visualDensity: _compactVisualDensity,
+                  iconSize: 22,
                   onPressed: () {
                     showCupertinoModalPopup<String>(
                       context: context,

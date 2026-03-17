@@ -205,11 +205,14 @@ class TIMUIKitMergerElemState extends TIMUIKitState<TIMUIKitMergerElem> {
                 height: 4,
               ),
               const Divider(),
-              Text(
-                TIM_t("聊天记录"),
-                style: TextStyle(
-                  color: theme.weakTextColor,
-                  fontSize: 10,
+              Align(
+                alignment: Alignment.center,
+                child: Text(
+                  TIM_t("聊天记录"),
+                  style: TextStyle(
+                    color: theme.weakTextColor,
+                    fontSize: 10,
+                  ),
                 ),
               ),
               if (widget.isShowMessageReaction ?? true) TIMUIKitMessageReactionShowPanel(message: widget.message)

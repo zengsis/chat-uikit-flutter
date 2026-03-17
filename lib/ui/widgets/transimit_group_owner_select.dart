@@ -125,8 +125,18 @@ class _SelectNewGroupOwner extends TIMUIKitState<SelectNewGroupOwner> {
                 onPressed: () {
                   Navigator.pop(context);
                 },
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  minimumSize: const Size(0, 0),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  alignment: Alignment.centerLeft,
+                  visualDensity: VisualDensity.compact,
+                ),
                 child: Text(
                   TIM_t("取消"),
+                  maxLines: 1,
+                  softWrap: false,
+                  overflow: TextOverflow.clip,
                   style: TextStyle(
                     color: theme.appbarTextColor,
                     fontSize: 16,
@@ -150,7 +160,7 @@ class _SelectNewGroupOwner extends TIMUIKitState<SelectNewGroupOwner> {
                 )
               ],
               centerTitle: true,
-              leadingWidth: 100,
+              leadingWidth: 140,
               title: Text(
                 "转让群主",
                 style: TextStyle(

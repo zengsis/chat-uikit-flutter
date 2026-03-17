@@ -143,7 +143,7 @@ class _ForwardMessageScreenState extends TIMUIKitState<ForwardMessageScreen> {
         ),
         shadowColor: theme.weakBackgroundColor,
         backgroundColor: theme.appbarBgColor ?? theme.primaryColor,
-        leadingWidth: 80,
+        leadingWidth: 140,
         leading: TextButton(
           onPressed: () {
             if (isMultiSelect) {
@@ -160,8 +160,18 @@ class _ForwardMessageScreenState extends TIMUIKitState<ForwardMessageScreen> {
               }
             }
           },
+          style: TextButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            minimumSize: const Size(0, 0),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            alignment: Alignment.centerLeft,
+            visualDensity: VisualDensity.compact,
+          ),
           child: Text(
             TIM_t("取消"),
+            maxLines: 1,
+            softWrap: false,
+            overflow: TextOverflow.clip,
             style: TextStyle(
               color: theme.appbarTextColor,
               fontSize: 14,
