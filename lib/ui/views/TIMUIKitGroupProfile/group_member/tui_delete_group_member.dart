@@ -105,7 +105,12 @@ class _DeleteGroupMemberPageState extends TIMUIKitState<DeleteGroupMemberPage> {
                   ),
                 ),
                 leading: IconButton(
-                  icon: const Icon(Icons.arrow_back_ios, color: Colors.black, size: 20),
+                  icon: Image.asset(
+                    'images/arrow_back_black.png',
+                    width: 20,
+                    height: 20,
+                    package: 'tencent_cloud_chat_uikit',
+                  ),
                   onPressed: () => Navigator.of(context).pop(),
                 ),
                 actions: [
