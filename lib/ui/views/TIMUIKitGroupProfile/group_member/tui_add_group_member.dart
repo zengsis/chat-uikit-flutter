@@ -58,43 +58,51 @@ class _AddGroupMemberPageState extends TIMUIKitState<AddGroupMemberPage> {
         ),
         defaultWidget: Scaffold(
             backgroundColor: theme.weakBackgroundColor, // 页面背景色
-            appBar: AppBar(
-                elevation: 1,
-                backgroundColor: Colors.white,
-                iconTheme: const IconThemeData(
-                  color: Colors.black, // iOS 风格深色返回箭头
+            appBar: PreferredSize(
+              preferredSize: const Size.fromHeight(kToolbarHeight),
+              child: MediaQuery(
+                data: MediaQuery.of(context).copyWith(
+                  textScaler: TextScaler.noScaling,
                 ),
-                title: Align(
-                  alignment: Alignment.center,
-                  child: Text(
-                    TIM_t("添加群成员"),
-                    style: resolvedTitleStyle,
-                  ),
-                ),
-                leading: IconButton(
-                  icon: Image.asset(
-                    'images/arrow_back_black.png',
-                    width: 20,
-                    height: 20,
-                    package: 'tencent_cloud_chat_uikit',
-                  ),
-                  onPressed: () => Navigator.of(context).pop(),
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () async {
-                      submitAdd();
-                    },
-                    child: const Text(
-                      "确定",
-                      style: TextStyle(
-                        color: Colors.black,
-                        fontSize: 16,
+                child: AppBar(
+                    elevation: 1,
+                    backgroundColor: Colors.white,
+                    iconTheme: const IconThemeData(
+                      color: Colors.black, // iOS 风格深色返回箭头
+                    ),
+                    title: Align(
+                      alignment: Alignment.center,
+                      child: Text(
+                        TIM_t("添加群成员"),
+                        style: resolvedTitleStyle,
                       ),
                     ),
-                  )
-                ],
-                shadowColor: theme.weakDividerColor),
+                    leading: IconButton(
+                      icon: Image.asset(
+                        'images/arrow_back_black.png',
+                        width: 20,
+                        height: 20,
+                        package: 'tencent_cloud_chat_uikit',
+                      ),
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () async {
+                          submitAdd();
+                        },
+                        child: const Text(
+                          "确定",
+                          style: TextStyle(
+                            color: Colors.black,
+                            fontSize: 16,
+                          ),
+                        ),
+                      )
+                    ],
+                    shadowColor: theme.weakDividerColor),
+              ),
+            ),
             body: ContactList(
               bgColor: Colors.white,
               groupMemberList: widget.model.groupMemberList,

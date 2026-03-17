@@ -101,40 +101,48 @@ class _DeleteGroupMemberPageState extends TIMUIKitState<DeleteGroupMemberPage> {
           ),
         ),
         defaultWidget: Scaffold(
-            appBar: AppBar(
-                title: Align(
-                  alignment: Alignment.center,
-                  child: Text(
-                    TIM_t("删除群成员"),
-                    style: resolvedTitleStyle,
-                  ),
+            appBar: PreferredSize(
+              preferredSize: const Size.fromHeight(kToolbarHeight),
+              child: MediaQuery(
+                data: MediaQuery.of(context).copyWith(
+                  textScaler: TextScaler.noScaling,
                 ),
-                leading: IconButton(
-                  icon: Image.asset(
-                    'images/arrow_back_black.png',
-                    width: 20,
-                    height: 20,
-                    package: 'tencent_cloud_chat_uikit',
-                  ),
-                  onPressed: () => Navigator.of(context).pop(),
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: submitDelete,
-                    child: Text(
-                      TIM_t("确定"),
-                      style: TextStyle(
-                        color: theme.appbarTextColor,
-                        fontSize: 16,
+                child: AppBar(
+                    title: Align(
+                      alignment: Alignment.center,
+                      child: Text(
+                        TIM_t("删除群成员"),
+                        style: resolvedTitleStyle,
                       ),
                     ),
-                  )
-                ],
-                shadowColor: theme.weakBackgroundColor,
-                backgroundColor: theme.appbarBgColor ?? theme.primaryColor,
-                iconTheme: IconThemeData(
-                  color: theme.appbarTextColor,
-                )),
+                    leading: IconButton(
+                      icon: Image.asset(
+                        'images/arrow_back_black.png',
+                        width: 20,
+                        height: 20,
+                        package: 'tencent_cloud_chat_uikit',
+                      ),
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: submitDelete,
+                        child: Text(
+                          TIM_t("确定"),
+                          style: TextStyle(
+                            color: theme.appbarTextColor,
+                            fontSize: 16,
+                          ),
+                        ),
+                      )
+                    ],
+                    shadowColor: theme.weakBackgroundColor,
+                    backgroundColor: theme.appbarBgColor ?? theme.primaryColor,
+                    iconTheme: IconThemeData(
+                      color: theme.appbarTextColor,
+                    )),
+              ),
+            ),
             body: GroupProfileMemberList(
               memberList: handleRole(searchMemberList ?? widget.model.groupMemberList),
               canSelectMember: true,

@@ -44,6 +44,14 @@ class TIMUIKitConfig {
   /// with a default value of `true`, and backward-compatibility.
   final bool isPreloadMessagesAfterInit;
 
+  /// Global text scale factor for all TUIKit pages.
+  ///
+  /// - When set, TUIKit will override `MediaQuery.textScaler` for its widgets using this factor.
+  /// - Recommended for keeping TUIKit font sizes consistent with your design spec across pages.
+  ///
+  /// If null, TUIKit will respect the host app's `MediaQuery.textScaler` (system accessibility).
+  final double? textScaleFactor;
+
   const TIMUIKitConfig( {
     this.defaultAvatarAssetPath,
     this.showDesktopModalFunc,
@@ -51,5 +59,6 @@ class TIMUIKitConfig {
     this.defaultAvatarBorderRadius,
     this.isCheckDiskStorageSpace = true,
     this.isShowOnlineStatus = true,
+    this.textScaleFactor,
   });
 }
