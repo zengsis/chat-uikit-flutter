@@ -20,117 +20,86 @@ class TextInputBottomSheet {
     final isDesktopScreen = TUIKitScreenUtils.getFormFactor(context) == DeviceType.Desktop;
     selectionController.text = initText ?? "";
     return SingleChildScrollView(
-        child: Container(
-      padding: EdgeInsets.only(
-        top: 16,
-        left: 16,
-        right: 16,
-        bottom:
-            isDesktopScreen ? 16 : MediaQuery.of(context).viewInsets.bottom + 30,
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(bottom: 16),
-            child: Text(title,
-                style:
-                    const TextStyle(fontWeight: FontWeight.w500, fontSize: 16)),
-          ),
-          Divider(height: 2, color: theme.weakDividerColor),
-          TextField(
-
-            onSubmitted: (text) {
-              onSubmitted(text);
-              if (entry != null) {
-                entry?.remove();
-                entry = null;
-              } else {
-                Navigator.pop(context);
-              }
-            },
-            autofocus: true,
-            controller: selectionController,
-          ),
-          if(tips != null) Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(vertical: 5),
-                height: 40,
-                child: Text(
-                  tips,
-                  style: const TextStyle(color: Colors.grey, fontSize: 12),
-                ),
-              )
-            ],
-          ),
-          if (isDesktopScreen)
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                if (isShowCancel)
-                  Container(
-                      margin: const EdgeInsets.only(right: 20),
-                      child: SizedBox(
-                        width: 84,
-                        child: ElevatedButton(
-                            style: ButtonStyle(
-                              backgroundColor: MaterialStateProperty.all(
-                                  theme.wideBackgroundColor),
-                              shape: MaterialStateProperty.all(
-                                  RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(5))),
-                            ),
-                            onPressed: () {
-                              if (entry != null) {
-                                entry?.remove();
-                                entry = null;
-                              } else {
-                                Navigator.pop(context);
-                              }
-                            },
-                            child: Text(
-                              TIM_t("取消"),
-                              style: TextStyle(color: theme.darkTextColor),
-                            )),
-                      )),
-                SizedBox(
-                  width: 84,
-                  child: ElevatedButton(
-                      style: ButtonStyle(
-                        shape: MaterialStateProperty.all(RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(5))),
-                      ),
-                      onPressed: () {
-                        String text = selectionController.text;
-                        onSubmitted(text);
-                        if (entry != null) {
-                          entry?.remove();
-                          entry = null;
-                        } else {
-                          Navigator.pop(context);
-                        }
-                      },
-                      child: Text(TIM_t("保存"))),
-                ),
-              ],
+      child: Container(
+        padding: EdgeInsets.only(
+          top: 16,
+          left: 16,
+          right: 16,
+          bottom: isDesktopScreen ? 16 : MediaQuery.of(context).viewInsets.bottom + 30,
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start, // 添加左对齐
+          children: [
+            // 标题
+            Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: Text(
+                title,
+                style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 16),
+                textAlign: TextAlign.center,
+              ),
             ),
-          if (!isDesktopScreen)
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                if (isShowCancel)
-                  Expanded(
-                      child: Container(
-                    margin: const EdgeInsets.only(right: 20),
-                    child: ElevatedButton(
+
+            Divider(height: 2, color: theme.weakDividerColor),
+
+            const SizedBox(height: 8), // 添加一些间距
+
+            // 输入框
+            TextField(
+              onSubmitted: (text) {
+                onSubmitted(text);
+                if (entry != null) {
+                  entry?.remove();
+                  entry = null;
+                } else {
+                  Navigator.pop(context);
+                }
+              },
+              autofocus: true,
+              controller: selectionController,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                isDense: true, // 减少内边距
+                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              ),
+            ),
+
+            // 提示文本 - 修复版
+            if (tips != null && tips!.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  tips!,
+                  style: const TextStyle(
+                    color: Colors.grey,
+                    fontSize: 12,
+                  ),
+                  maxLines: 2, // 允许最多2行
+                  overflow: TextOverflow.ellipsis,
+                  softWrap: true, // 允许换行
+                ),
+              ),
+
+            const SizedBox(height: 16), // 按钮上方间距
+
+            // 桌面版按钮
+            if (isDesktopScreen)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  if (isShowCancel) ...[
+                    SizedBox(
+                      width: 84,
+                      child: ElevatedButton(
                         style: ButtonStyle(
-                          backgroundColor: MaterialStateProperty.all(
+                          backgroundColor: WidgetStateProperty.all(
                               theme.wideBackgroundColor),
-                          shape: MaterialStateProperty.all(
-                              RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(5))),
+                          shape: WidgetStateProperty.all(
+                            RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(5),
+                            ),
+                          ),
                         ),
                         onPressed: () {
                           if (entry != null) {
@@ -143,14 +112,20 @@ class TextInputBottomSheet {
                         child: Text(
                           TIM_t("取消"),
                           style: TextStyle(color: theme.darkTextColor),
-                        )),
-                  )),
-                Expanded(
-                    child: SizedBox(
-                  child: ElevatedButton(
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 20),
+                  ],
+                  SizedBox(
+                    width: 84,
+                    child: ElevatedButton(
                       style: ButtonStyle(
-                        shape: MaterialStateProperty.all(RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(5))),
+                        shape: WidgetStateProperty.all(
+                          RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(5),
+                          ),
+                        ),
                       ),
                       onPressed: () {
                         String text = selectionController.text;
@@ -162,13 +137,73 @@ class TextInputBottomSheet {
                           Navigator.pop(context);
                         }
                       },
-                      child: Text(TIM_t("确定"))),
-                )),
-              ],
-            ),
-        ],
+                      child: Text(TIM_t("保存")),
+                    ),
+                  ),
+                ],
+              ),
+
+            // 移动版按钮
+            if (!isDesktopScreen)
+              Row(
+                children: [
+                  if (isShowCancel)
+                    Expanded(
+                      child: Container(
+                        margin: const EdgeInsets.only(right: 10),
+                        child: ElevatedButton(
+                          style: ButtonStyle(
+                            backgroundColor: WidgetStateProperty.all(
+                                theme.wideBackgroundColor),
+                            shape: WidgetStateProperty.all(
+                              RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(5),
+                              ),
+                            ),
+                          ),
+                          onPressed: () {
+                            if (entry != null) {
+                              entry?.remove();
+                              entry = null;
+                            } else {
+                              Navigator.pop(context);
+                            }
+                          },
+                          child: Text(
+                            TIM_t("取消"),
+                            style: TextStyle(color: theme.darkTextColor),
+                          ),
+                        ),
+                      ),
+                    ),
+                  Expanded(
+                    child: ElevatedButton(
+                      style: ButtonStyle(
+                        shape: MaterialStateProperty.all(
+                          RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(5),
+                          ),
+                        ),
+                      ),
+                      onPressed: () {
+                        String text = selectionController.text;
+                        onSubmitted(text);
+                        if (entry != null) {
+                          entry?.remove();
+                          entry = null;
+                        } else {
+                          Navigator.pop(context);
+                        }
+                      },
+                      child: Text(TIM_t("确定")),
+                    ),
+                  ),
+                ],
+              ),
+          ],
+        ),
       ),
-    ));
+    );
   }
 
   static showTextInputBottomSheet({

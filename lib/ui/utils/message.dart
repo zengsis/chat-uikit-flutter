@@ -31,6 +31,21 @@ import 'package:tencent_cloud_chat_uikit/ui/utils/logger.dart';
 import 'package:tencent_cloud_chat_uikit/theme/tui_theme.dart';
 
 class MessageUtils {
+  static String _concatUserAndTextWithAutoSpace(String? user, String text) {
+    final u = (user ?? "").trim();
+    final t = text.trimLeft();
+    if (u.isEmpty) return t;
+    if (t.isEmpty) return u;
+
+    // 中文等 CJK 语言一般不需要空格；英文等拉丁字符/符号开头更自然需要空格。
+    final shouldInsertSpace = RegExp(r'^[A-Za-z0-9\[\(\{<]').hasMatch(t);
+    return shouldInsertSpace ? "$u $t" : "$u$t";
+  }
+
+  static String concatUserAndTextWithAutoSpace(String? user, String text) {
+    return _concatUserAndTextWithAutoSpace(user, text);
+  }
+
   // 判断CallingData的方式和Trtc的方法一致
   static isCallingData(String data) {
     try {
@@ -65,8 +80,17 @@ class MessageUtils {
         final data = message.customElem?.data ?? "";
         Map<String, dynamic> customMap = jsonDecode(data);
         if (customMap.containsKey('businessID') && customMap['businessID'] == "group_create") {
-          final content = "${customMap['opUser']}${customMap['content']}";
-          return content;
+          final opUser = (customMap['opUser'] ?? "").toString();
+          final content = (customMap['content'] ?? "").toString();
+
+          if (opUser.isEmpty) {
+            return content;
+          }
+          if (content.isEmpty) {
+            return opUser;
+          }
+
+          return _concatUserAndTextWithAutoSpace(opUser, content);
         }
         return "";
       }
@@ -186,26 +210,28 @@ class MessageUtils {
         }
         if (changedInfoString == TIM_t("全员禁言状态")) {
           changedInfoString = TIM_t("全员禁言");
-          displayMessage = changedValue == false
-              ? TIM_t_para("{{option7}} 取消", "$option7 取消")(option7: option7) + changedInfoString
-              : TIM_t_para("{{option7}} 开启", "$option7 开启")(option7: option7) + changedInfoString;
+          final action = changedValue == false ? TIM_t("取消") : TIM_t("开启");
+          displayMessage = _concatUserAndTextWithAutoSpace(option7, action) + changedInfoString;
         } else {
-          displayMessage = TIM_t_para("{{option7}}修改", "$option7修改")(option7: option7) + changedInfoString;
+          displayMessage = _concatUserAndTextWithAutoSpace(option7, TIM_t("修改")) + changedInfoString;
         }
         break;
       case GroupTipsElemType.V2TIM_GROUP_TIPS_TYPE_QUIT:
         final String? option6 = opUserNickName ?? "";
-        displayMessage = TIM_t_para("{{option6}}退出群聊", "$option6退出群聊")(option6: option6);
+        displayMessage = _concatUserAndTextWithAutoSpace(option6, TIM_t("退出群聊"));
         break;
       case GroupTipsElemType.V2TIM_GROUP_TIPS_TYPE_INVITE:
         final option5 = memberList!.map((e) => _getMemberNickName(e!).toString()).join("、");
         final inviteUser = _getOpUserNick(operationMember);
-        displayMessage = '$inviteUser' + TIM_t_para("邀请{{option5}}加入群组", "邀请$option5加入群组")(option5: option5);
+        final inviteText =
+            TIM_t_para("邀请{{option5}}加入群组", "邀请$option5加入群组")(option5: option5);
+        displayMessage = _concatUserAndTextWithAutoSpace(inviteUser, inviteText);
         break;
       case GroupTipsElemType.V2TIM_GROUP_TIPS_TYPE_KICKED:
         final option4 = memberList!.map((e) => _getMemberNickName(e!).toString()).join("、");
         final kickUser = _getOpUserNick(operationMember);
-        displayMessage = '$kickUser' + TIM_t_para("将{{option4}}踢出群组", "将$option4踢出群组")(option4: option4);
+        final kickedText = TIM_t_para("将{{option4}}踢出群组", "将$option4踢出群组")(option4: option4);
+        displayMessage = _concatUserAndTextWithAutoSpace(kickUser, kickedText);
         break;
       case GroupTipsElemType.V2TIM_GROUP_TIPS_TYPE_JOIN:
         final option3 = memberList!.map((e) => _getMemberNickName(e!).toString()).join("、");
@@ -225,13 +251,17 @@ class MessageUtils {
         final adminMember = memberList!.map((e) => _getMemberNickName(e!).toString()).join("、");
         final opMember = _getOpUserNick(operationMember);
         final option1 = adminMember;
-        displayMessage = '$opMember' + TIM_t_para("将 {{option1}} 设置为管理员", "将 $option1 设置为管理员")(option1: option1);
+        final setAdminText =
+            TIM_t_para("将 {{option1}} 设置为管理员", "将 $option1 设置为管理员")(option1: option1);
+        displayMessage = _concatUserAndTextWithAutoSpace(opMember, setAdminText);
         break;
       case GroupTipsElemType.V2TIM_GROUP_TIPS_TYPE_CANCEL_ADMIN:
         final adminMember = memberList!.map((e) => _getMemberNickName(e!).toString()).join("、");
         final opMember = _getOpUserNick(operationMember);
         final option1 = adminMember;
-        displayMessage = '$opMember' + TIM_t_para("将 {{option1}} 取消管理员", "将 $option1 取消管理员")(option1: option1);
+        final cancelAdminText =
+            TIM_t_para("将 {{option1}} 取消管理员", "将 $option1 取消管理员")(option1: option1);
+        displayMessage = _concatUserAndTextWithAutoSpace(opMember, cancelAdminText);
         break;
       default:
         final String option2 = operationType.toString();
