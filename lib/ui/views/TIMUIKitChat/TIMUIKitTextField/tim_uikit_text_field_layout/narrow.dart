@@ -537,6 +537,13 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
                                           focusNode: widget.focusNode,
                                           onChanged: debounceFunc,
                                           onTap: () {
+                                            // 与“表情按钮切回键盘”保持同一过渡策略：
+                                            // 在键盘 viewInsets 尚未上来前，短暂保留面板高度，避免先下后上。
+                                            if (showEmojiPanel) {
+                                              _keepPanelHeightUntil = DateTime.now().add(
+                                                const Duration(milliseconds: 260),
+                                              );
+                                            }
                                             showKeyboard = true;
                                             widget.goDownBottom();
                                             setState(() {
