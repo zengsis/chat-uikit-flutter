@@ -184,14 +184,26 @@ class _GroupProfileNotificationPageState extends TIMUIKitState<GroupProfileNotif
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          TIM_t("群公告"),
-          style: TextStyle(color: theme.appbarTextColor, fontSize: 17),
+        title: Align(
+          alignment: Alignment.center,
+          child: Text(
+            TIM_t("群公告"),
+            style: TextStyle(color: theme.appbarTextColor, fontSize: 17),
+          ),
         ),
         backgroundColor: theme.appbarBgColor ?? theme.primaryColor,
         shadowColor: theme.weakDividerColor,
         iconTheme: IconThemeData(
           color: theme.appbarTextColor,
+        ),
+        leading: IconButton(
+          icon: Image.asset(
+            'images/arrow_back_black.png',
+            width: 20,
+            height: 20,
+            package: 'tencent_cloud_chat_uikit',
+          ),
+          onPressed: () => Navigator.of(context).pop(),
         ),
         actions: [
           TextButton(

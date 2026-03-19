@@ -27,6 +27,10 @@ import 'package:tencent_cloud_chat_uikit/ui/views/TIMUIKitChat/TIMUIKitTextField
 import 'package:tencent_keyboard_visibility/tencent_keyboard_visibility.dart';
 
 GlobalKey<_TIMUIKitTextFieldLayoutNarrowState> narrowTextFieldKey = GlobalKey();
+/// Expose the extra bottom inset occupied by emoji/more panel in narrow layout.
+/// This panel does not trigger system keyboard `viewInsets`, but it visually covers bottom area.
+/// Business-side containers can listen to this to adjust their own bottom offset like keyboard.
+ValueNotifier<double> timUIKitExtraBottomInset = ValueNotifier<double>(0);
 
 class TIMUIKitTextFieldLayoutNarrow extends StatefulWidget {
   /// sticker panel customization
@@ -154,6 +158,19 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
   bool showKeyboard = false;
   Function? setKeyboardHeight;
   double? bottomPadding;
+  double _lastPanelHeight = 0;
+  DateTime? _keepPanelHeightUntil;
+  double _lastKeyboardHeight = 0;
+
+  double _resolvePanelHeight() {
+    final fallback = 248.0 + (bottomPadding ?? 0.0);
+    // 优先使用本地实时记录的最近一次键盘高度（无 debounce 延迟）
+    if (_lastKeyboardHeight > 0) return _lastKeyboardHeight;
+    // 次选全局缓存
+    if (settingModel.keyboardHeight > 0) return settingModel.keyboardHeight;
+    // 兜底默认面板高度
+    return fallback;
+  }
 
   @override
   void initState() {
@@ -167,6 +184,25 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
           }
         },
       );
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _syncExtraBottomInset();
+    });
+  }
+
+  void _syncExtraBottomInset() {
+    // 外层容器（如半屏弹窗）需要知道“表情/更多面板”占用的高度，避免消息区被遮挡。
+    // 键盘高度由外层 viewInsets/bottomOffset 处理，这里只输出面板高度。
+    //
+    // 体验优化：表情/更多面板高度尽量对齐键盘高度，减少键盘 <-> 表情切换时的跳动。
+    double panelHeight = 0.0;
+    if (showMore || showEmojiPanel) {
+      panelHeight = _resolvePanelHeight();
+    }
+
+    final next = panelHeight;
+    if (timUIKitExtraBottomInset.value != next) {
+      timUIKitExtraBottomInset.value = next;
     }
   }
 
@@ -194,6 +230,7 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
         showMore = false;
         showEmojiPanel = false;
       });
+      _syncExtraBottomInset();
     }
   }
 
@@ -273,6 +310,22 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
   double _getBottomHeight() {
     if (showKeyboard) {
       final currentKeyboardHeight = MediaQuery.of(context).viewInsets.bottom;
+      // 以当前 MediaQuery 的 viewInsets 为准：
+      // 当上层业务容器已整体跟随键盘上移并且通过 MediaQuery 抹平了 viewInsets 时，
+      // 这里不应再使用历史缓存的 keyboardHeight，否则会出现“再次上移一个键盘高度”的空隙。
+      if (currentKeyboardHeight == 0) {
+        // 表情面板 -> 键盘：键盘 viewInsets 会稍后才上来。
+        // 为了避免底部容器高度先掉到 0（导致工具栏/输入区闪一下），
+        // 在短暂窗口内保持上一次面板高度，直到键盘出现。
+        final now = DateTime.now();
+        if (_keepPanelHeightUntil != null &&
+            now.isBefore(_keepPanelHeightUntil!) &&
+            _lastPanelHeight > 0) {
+          return _lastPanelHeight;
+        }
+        return 0;
+      }
+      _lastKeyboardHeight = currentKeyboardHeight;
       double originHeight = settingModel.keyboardHeight;
       if (currentKeyboardHeight != 0) {
         if (currentKeyboardHeight >= originHeight) {
@@ -285,7 +338,9 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
       final height = originHeight != 0 ? originHeight : currentKeyboardHeight;
       return height;
     } else if (showMore || showEmojiPanel) {
-      return 248.0 + (bottomPadding ?? 0.0);
+      final h = _resolvePanelHeight();
+      _lastPanelHeight = h;
+      return h;
     } else if (widget.textEditingController.text.length >= 46 && showKeyboard == false) {
       return 25 + (bottomPadding ?? 0.0);
     } else {
@@ -304,6 +359,7 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
       showSendSoundText = false;
       showMore = !showMore;
     });
+    _syncExtraBottomInset();
   }
 
   _openEmojiPanel() {
@@ -311,8 +367,11 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
     showKeyboard = showEmojiPanel;
     if (showEmojiPanel) {
       widget.focusNode.requestFocus();
+      // 从面板切换到键盘：开启一个短暂窗口，避免底部高度先变 0 再变为键盘高度
+      _keepPanelHeightUntil = DateTime.now().add(const Duration(milliseconds: 260));
     } else {
       widget.focusNode.unfocus();
+      _keepPanelHeightUntil = null;
     }
 
     setState(() {
@@ -320,6 +379,7 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
       showSendSoundText = false;
       showEmojiPanel = !showEmojiPanel;
     });
+    _syncExtraBottomInset();
   }
 
   _debounce(
@@ -534,7 +594,15 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
                                         if (showKeyboard != visibility) {
                                           setState(() {
                                             showKeyboard = visibility;
+                                            // 当系统键盘弹出时，表情/更多面板应视为关闭，否则外层会把半屏高度“顶满”，
+                                            // 造成放大/缩小切换看起来无效。
+                                            if (visibility) {
+                                              showEmojiPanel = false;
+                                              showMore = false;
+                                              _keepPanelHeightUntil = null;
+                                            }
                                           });
+                                          _syncExtraBottomInset();
                                         }
                                       }),
                                 ),
