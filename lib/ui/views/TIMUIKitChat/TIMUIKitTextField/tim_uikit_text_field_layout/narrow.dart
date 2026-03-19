@@ -264,7 +264,8 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
                 widget.addStickerToText(newText);
                 setSendButton();
               }),
-              defaultCustomEmojiStickerList: widget.isUseDefaultEmoji ? TUIKitStickerConstData.emojiList : [])
+              defaultCustomEmojiStickerList: widget.isUseDefaultEmoji ? TUIKitStickerConstData.emojiList : [],
+              height: _resolvePanelHeight())
           : StickerPanel(
               isWideScreen: false,
               sendTextMsg: () {
