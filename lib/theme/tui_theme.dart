@@ -18,7 +18,7 @@ class TUITheme {
     this.white = Colors.white,
     this.black = Colors.black,
     this.inputFillColor = const Color(0xFFEDEDED),
-    this.textgrey = const Color(0xFFAEA4A3),
+    this.textgrey = const Color(0xFF666666),
 
     /// 消息列表多选面板背景颜色
     this.selectPanelBgColor = const Color(0xFFF9F9FA),

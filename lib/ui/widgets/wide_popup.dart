@@ -18,6 +18,8 @@ import 'package:video_player/video_player.dart';
 
 typedef BuildContentFunction = Widget Function(BuildContext context);
 
+
+/// 进群申请弹窗
 class TUIKitWidePopup {
   static OverlayEntry? entry;
   static bool isShow = false;
@@ -129,7 +131,7 @@ class TUIKitWidePopup {
                     alignment: Alignment.center,
                     child: Text(
                       title,
-                      style: TextStyle(fontSize: 18, color: theme?.darkTextColor ?? const Color(0xFF444444)),
+                      style: TextStyle(fontSize: 16, color: theme?.darkTextColor ?? const Color(0xFF444444)),
                     ),
                   ),
                   InkWell(

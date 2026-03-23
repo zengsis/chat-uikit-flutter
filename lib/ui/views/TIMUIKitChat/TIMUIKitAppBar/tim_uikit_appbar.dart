@@ -129,7 +129,7 @@ class _TIMUIKitAppBarState extends TIMUIKitState<TIMUIKitAppBar> {
     final base = setAppbar?.titleTextStyle ??
         Theme.of(context).appBarTheme.titleTextStyle ??
         Theme.of(context).textTheme.titleLarge ??
-        const TextStyle(fontSize: 16);
+        const TextStyle(fontSize: 18);
 
     // SDK 的主题色仍然保留，但不再写死字号
     return base.copyWith(
@@ -301,17 +301,6 @@ class _TIMUIKitAppBarState extends TIMUIKitState<TIMUIKitAppBar> {
               Tuple2(chatVM.isMultiSelect, model.totalUnReadCount)),
       actions: setAppbar?.actions,
     );
-
-    // TUIKit 内部会通过 `TIMUIKitConfig.textScaleFactor` 覆盖整个子树的 `MediaQuery.textScaler`，
-    // 用于把 SDK 内写死的字号对齐到主工程的 `sp` 体系。
-    //
-    // 但导航栏（AppBar）上的文字通常来自主工程的 Theme（例如 18.sp），如果继续缩放会被二次缩小。
-    // 因此这里对 AppBar 单独禁用 text scaling，保持主工程的导航栏字号不变。
-    return MediaQuery(
-      data: MediaQuery.of(context).copyWith(
-        textScaler: TextScaler.noScaling,
-      ),
-      child: appBar,
-    );
+    return appBar;
   }
 }

@@ -364,14 +364,14 @@ class _TUIChatState extends TIMUIKitState<TIMUIKitChat> {
             Text(
               TIM_t_para("{{option1}} 条入群请求", "$option1 条入群请求")(option1: option1),
               style: const TextStyle(
-                fontSize: 12,
+                fontSize: 14,
               ),
             ),
             Container(
               margin: const EdgeInsets.only(left: 12),
               child: Text(
                 TIM_t("去处理"),
-                style: TextStyle(fontSize: 12, color: theme.primaryColor),
+                style: TextStyle(fontSize: 14, color: theme.primaryColor),
               ),
             )
           ],

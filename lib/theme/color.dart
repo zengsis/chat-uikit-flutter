@@ -17,7 +17,7 @@ class CommonColor {
   static const ownerColor = Colors.orange;
   static const adminColor = Colors.blue;
   static const inputFillColor = Color.fromARGB(0, 242, 243, 245);
-  static const textgrey = Color(0xFFAEA4A3);
+  static const textgrey = Color(0xFF666666);
 
   static const defaultTheme = TUITheme(
     weakBackgroundColor: Color(0xFFF2F3F5), // 背景
@@ -32,7 +32,7 @@ class CommonColor {
     ownerColor: Colors.orange,
     adminColor: Colors.blue,
     inputFillColor: Color.fromARGB(0, 242, 243, 245),
-    textgrey: Color(0xFFAEA4A3),
+    textgrey: Color(0xFF666666),
     appbarBgColor: Colors.white,
   );
 }

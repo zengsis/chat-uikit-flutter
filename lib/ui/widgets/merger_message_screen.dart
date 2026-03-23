@@ -340,38 +340,33 @@ class MergerMessageScreenState extends TIMUIKitState<MergerMessageScreen> {
           backgroundColor: Colors.white,
           appBar: PreferredSize(
             preferredSize: const Size.fromHeight(kToolbarHeight),
-            child: MediaQuery(
-              data: MediaQuery.of(context).copyWith(
-                textScaler: TextScaler.noScaling,
-              ),
-              child: AppBar(
-                  centerTitle: true,
-                  title: Text(
-                    TIM_t("聊天记录"),
-                    style: resolvedTitleStyle,
+            child: AppBar(
+                centerTitle: true,
+                title: Text(
+                  TIM_t("聊天记录"),
+                  style: resolvedTitleStyle,
+                ),
+                leading: IconButton(
+                  icon: Image.asset(
+                    'images/arrow_back_black.png',
+                    width: 20,
+                    height: 20,
+                    package: 'tencent_cloud_chat_uikit',
                   ),
-                  leading: IconButton(
-                    icon: Image.asset(
-                      'images/arrow_back_black.png',
-                      width: 20,
-                      height: 20,
-                      package: 'tencent_cloud_chat_uikit',
-                    ),
-                    onPressed: () => Navigator.of(context).pop(),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+                bottom: PreferredSize(
+                  preferredSize: const Size.fromHeight(1), // 分割线高度
+                  child: Container(
+                    color: theme.weakDividerColor, // 使用你的主题分割线颜色
+                    height: 1,
                   ),
-                  bottom: PreferredSize(
-                    preferredSize: const Size.fromHeight(1), // 分割线高度
-                    child: Container(
-                      color: theme.weakDividerColor, // 使用你的主题分割线颜色
-                      height: 1,
-                    ),
-                  ),
-                  shadowColor: theme.weakDividerColor,
-                  backgroundColor: theme.appbarBgColor ?? theme.primaryColor,
-                  iconTheme: IconThemeData(
-                    color: theme.appbarTextColor,
-                  )),
-            ),
+                ),
+                shadowColor: theme.weakDividerColor,
+                backgroundColor: theme.appbarBgColor ?? theme.primaryColor,
+                iconTheme: IconThemeData(
+                  color: theme.appbarTextColor,
+                )),
           ),
           body: messageListPage(),
         ));
