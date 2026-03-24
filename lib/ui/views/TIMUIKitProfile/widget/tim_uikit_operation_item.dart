@@ -133,13 +133,13 @@ class TIMUIKitOperationItem extends TIMUIKitStatelessWidget {
                           operationName,
                           style: TextStyle(
                               color:
-                                  isDesktopScreen ? hexToColor("7f7f7f") : null),
+                                  isDesktopScreen ? hexToColor("7f7f7f") : null, fontSize: 18),
                         ),
                         if (operationDescription != null)
                           Text(
                             operationDescription!,
                             style: TextStyle(
-                                color: theme.weakTextColor, fontSize: 12),
+                                color: theme.weakTextColor, fontSize: 16),
                           )
                       ],
                     ),

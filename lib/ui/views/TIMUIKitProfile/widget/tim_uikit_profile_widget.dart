@@ -181,7 +181,7 @@ class TIMUIKitProfileWidget extends TIMUIKitClass {
         isEmpty: nickName.isEmpty,
         showAllowEditStatus: false,
         operationName: TIM_t("昵称"),
-        operationRightWidget: Text(nickName, textAlign: isDesktopScreen ? null : TextAlign.end),
+        operationRightWidget: Text(nickName, textAlign: isDesktopScreen ? null : TextAlign.end, style: TextStyle(fontSize: 16)),
       ),
     );
   }
@@ -194,7 +194,7 @@ class TIMUIKitProfileWidget extends TIMUIKitClass {
         isEmpty: false,
         showAllowEditStatus: false,
         operationName: TIM_t("账号"),
-        operationRightWidget: SelectableText(userNum, textAlign: isDesktopScreen ? null : TextAlign.end),
+        operationRightWidget: SelectableText(userNum, textAlign: isDesktopScreen ? null : TextAlign.end, style: TextStyle(fontSize: 16)),
       ),
     );
   }
@@ -207,7 +207,7 @@ class TIMUIKitProfileWidget extends TIMUIKitClass {
         isEmpty: false,
         showAllowEditStatus: false,
         operationName: TIM_t("个性签名"),
-        operationRightWidget: Text(signature, textAlign: isDesktopScreen ? null : TextAlign.end),
+        operationRightWidget: Text(style: TextStyle(fontSize: 16), signature, textAlign: isDesktopScreen ? null : TextAlign.end),
       ),
     );
   }
@@ -225,7 +225,7 @@ class TIMUIKitProfileWidget extends TIMUIKitClass {
         isEmpty: false,
         showAllowEditStatus: false,
         operationName: TIM_t("性别"),
-        operationRightWidget: Text(genderMap[gender], textAlign: isDesktopScreen ? null : TextAlign.end),
+        operationRightWidget: Text(genderMap[gender], textAlign: isDesktopScreen ? null : TextAlign.end, style: TextStyle(fontSize: 16)),
       ),
     );
   }
@@ -242,7 +242,7 @@ class TIMUIKitProfileWidget extends TIMUIKitClass {
         smallCardMode: smallCardMode,
         isEmpty: false,
         operationName: TIM_t("性别"),
-        operationRightWidget: Text(genderMap[gender], textAlign: isDesktopScreen ? null : TextAlign.end),
+        operationRightWidget: Text(genderMap[gender], textAlign: isDesktopScreen ? null : TextAlign.end, style: TextStyle(fontSize: 16)),
       ),
     );
   }
@@ -263,7 +263,7 @@ class TIMUIKitProfileWidget extends TIMUIKitClass {
         smallCardMode: smallCardMode,
         isEmpty: false,
         operationName: TIM_t("生日"),
-        operationRightWidget: Text(TIM_t("未填写"), textAlign: isDesktopScreen ? null : TextAlign.end),
+        operationRightWidget: Text(TIM_t("未填写"), textAlign: isDesktopScreen ? null : TextAlign.end, style: TextStyle(fontSize: 16)),
       );
     }
   }
