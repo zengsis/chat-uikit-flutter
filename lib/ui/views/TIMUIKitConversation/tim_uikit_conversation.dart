@@ -37,6 +37,10 @@ typedef ConversationItemSlideBuilder = List<ConversationItemSlidePanel> Function
 typedef ConversationItemSecondaryMenuBuilder = Widget Function(
     V2TimConversation conversationItem, VoidCallback onClose);
 
+/// 会话预览行右侧（与时间同侧右对齐），例如群控制台自定义字段标签；不抬高标题行高度
+typedef ConversationTitleSuffixBuilder = Widget? Function(
+    BuildContext context, V2TimConversation conversationItem);
+
 class TIMUIKitConversation extends StatefulWidget {
   /// the callback after clicking conversation item
   final ValueChanged<V2TimConversation>? onTapItem;
@@ -72,6 +76,9 @@ class TIMUIKitConversation extends StatefulWidget {
   /// Control if shows the identifier that the conversation has a draft text, inputted in previous.
   final bool isShowDraft;
 
+  /// 预览文案行右侧的补充 widget（默认 null），如群 [V2TimGroupInfo.customInfo] 标签
+  final ConversationTitleSuffixBuilder? conversationTitleSuffixBuilder;
+
   const TIMUIKitConversation(
       {Key? key,
       this.lifeCycle,
@@ -84,7 +91,8 @@ class TIMUIKitConversation extends StatefulWidget {
       this.conversationCollector,
       this.emptyBuilder,
       this.lastMessageBuilder,
-      this.isShowOnlineStatus = true})
+      this.isShowOnlineStatus = true,
+      this.conversationTitleSuffixBuilder})
       : super(key: key);
 
   @override
@@ -392,7 +400,10 @@ class _TIMUIKitConversationState extends TIMUIKitState<TIMUIKitConversation> {
                                     ? onlineStatus
                                     : null,
                                 draftTimestamp: conversationItem.draftTimestamp,
-                                convType: conversationItem.type),
+                                convType: conversationItem.type,
+                                titleSuffix: widget.conversationTitleSuffixBuilder != null
+                                    ? widget.conversationTitleSuffixBuilder!(context, conversationItem)
+                                    : null),
                             onTap: () => onTapConvItem(conversationItem),
                           ),
                         );

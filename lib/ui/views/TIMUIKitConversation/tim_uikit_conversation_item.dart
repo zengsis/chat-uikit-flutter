@@ -34,6 +34,9 @@ class TIMUIKitConversationItem extends TIMUIKitStatelessWidget {
   final int? convType;
   final bool isCurrent;
 
+  /// 会话第二行右侧（最后一条预览与免打扰左侧），与时间列右对齐，不增加首行高度
+  final Widget? titleSuffix;
+
   TIMUIKitConversationItem({
     Key? key,
     required this.faceUrl,
@@ -49,6 +52,7 @@ class TIMUIKitConversationItem extends TIMUIKitStatelessWidget {
     this.draftTimestamp,
     this.lastMessageBuilder,
     this.convType,
+    this.titleSuffix,
   }) : super(key: key);
 
   Widget _getShowMsgWidget(BuildContext context) {
@@ -142,13 +146,15 @@ class TIMUIKitConversationItem extends TIMUIKitStatelessWidget {
           ),
           Expanded(
               child: Container(
-            height: 60,
+            constraints: const BoxConstraints(minHeight: 60),
             margin: EdgeInsets.only(left: isDesktopScreen ? 10 : 12),
             padding: const EdgeInsets.only(top: 0, bottom: 0),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Expanded(
@@ -168,25 +174,32 @@ class TIMUIKitConversationItem extends TIMUIKitStatelessWidget {
                     _getTimeStringForChatWidget(context, theme),
                   ],
                 ),
-                if (isHaveSecondLine())
+                if (isHaveSecondLine() || titleSuffix != null)
                   const SizedBox(
                     height: 6,
                   ),
-                Row(
-                  children: [
-                    Expanded(child: _getShowMsgWidget(context)),
-                    if (isDisturb)
-                      SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: Icon(
-                          Icons.notifications_off,
-                          color: theme.conversationItemNoNotificationIconColor,
-                          size: isDesktopScreen ? 14 : 16.0,
+                if (isHaveSecondLine() || titleSuffix != null)
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(child: _getShowMsgWidget(context)),
+                      if (titleSuffix != null)
+                        Padding(
+                          padding: EdgeInsets.only(left: isDesktopScreen ? 4 : 6),
+                          child: titleSuffix!,
                         ),
-                      )
-                  ],
-                ),
+                      if (isDisturb)
+                        SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: Icon(
+                            Icons.notifications_off,
+                            color: theme.conversationItemNoNotificationIconColor,
+                            size: isDesktopScreen ? 14 : 16.0,
+                          ),
+                        )
+                    ],
+                  ),
               ],
             ),
           ))
