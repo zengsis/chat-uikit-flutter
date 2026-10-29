@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:extended_text_field/extended_text_field.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:tencent_chat_i18n_tool/tencent_chat_i18n_tool.dart';
@@ -162,12 +163,20 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
   DateTime? _keepPanelHeightUntil;
   double _lastKeyboardHeight = 0;
 
+  bool get _ownsIOSKeyboard =>
+      widget.focusNode.hasFocus && (ModalRoute.of(context)?.isCurrent ?? true);
+
   double _resolvePanelHeight() {
     final fallback = 248.0 + (bottomPadding ?? 0.0);
     // 优先使用本地实时记录的最近一次键盘高度（无 debounce 延迟）
     if (_lastKeyboardHeight > 0) return _lastKeyboardHeight;
     // 次选全局缓存
-    if (settingModel.keyboardHeight > 0) return settingModel.keyboardHeight;
+    if (settingModel.keyboardHeight > 0) {
+      // 兼容旧版本已缓存的 iOS 收起动画高度；本次输入框实测高度仍优先。
+      return defaultTargetPlatform == TargetPlatform.iOS
+          ? max(settingModel.keyboardHeight, fallback)
+          : settingModel.keyboardHeight;
+    }
     // 兜底默认面板高度
     return fallback;
   }
@@ -310,6 +319,10 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
 
   double _getBottomHeight() {
     if (showKeyboard) {
+      // iOS 弹窗键盘及其收起动画不属于聊天输入框，不能覆盖面板高度缓存。
+      if (defaultTargetPlatform == TargetPlatform.iOS && !_ownsIOSKeyboard) {
+        return 0;
+      }
       final currentKeyboardHeight = MediaQuery.of(context).viewInsets.bottom;
       // 以当前 MediaQuery 的 viewInsets 为准：
       // 当上层业务容器已整体跟随键盘上移并且通过 MediaQuery 抹平了 viewInsets 时，
@@ -599,6 +612,11 @@ class _TIMUIKitTextFieldLayoutNarrowState extends TIMUIKitState<TIMUIKitTextFiel
                                                   checkHttpLink: false,
                                                 )),
                                       onChanged: (bool visibility) {
+                                        // 键盘监听是全局的，快速课堂等上层输入框不能切换聊天面板状态。
+                                        if (defaultTargetPlatform == TargetPlatform.iOS &&
+                                            visibility && !_ownsIOSKeyboard) {
+                                          return;
+                                        }
                                         if (showKeyboard != visibility) {
                                           setState(() {
                                             showKeyboard = visibility;
