@@ -1,9 +1,12 @@
+import 'package:tencent_cloud_chat_uikit/ui/utils/media_message_text.dart';
+import 'package:tencent_cloud_chat_uikit/ui/utils/media_message_source.dart';
+import 'package:tencent_cloud_chat_sdk/enum/message_status.dart';
+import 'package:tencent_cloud_chat_uikit/ui/utils/media_message_metadata.dart';
 // ignore_for_file: avoid_print
 
 import 'dart:io';
 import 'dart:math';
 
-import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:loading_animation_widget/loading_animation_widget.dart';
@@ -23,10 +26,8 @@ import 'package:tencent_cloud_chat_uikit/base_widgets/tim_ui_kit_state.dart';
 import 'package:tencent_cloud_chat_uikit/business_logic/separate_models/tui_chat_separate_view_model.dart';
 import 'package:tencent_cloud_chat_uikit/business_logic/view_models/tui_chat_global_model.dart';
 import 'package:tencent_cloud_chat_uikit/data_services/services_locatar.dart';
-import 'package:tencent_cloud_chat_uikit/tencent_cloud_chat_uikit.dart';
 import 'package:tencent_cloud_chat_uikit/theme/color.dart';
 import 'package:tencent_cloud_chat_uikit/theme/tui_theme.dart';
-import 'package:tencent_cloud_chat_uikit/ui/utils/permission.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/platform.dart';
 import 'package:tencent_cloud_chat_uikit/ui/views/TIMUIKitChat/TIMUIKitMessageItem/TIMUIKitMessageReaction/tim_uikit_message_reaction_wrapper.dart';
 import 'package:tencent_cloud_chat_uikit/ui/views/TIMUIKitChat/TIMUIKitMessageItem/tim_uikit_chat_file_icon.dart';
@@ -84,7 +85,7 @@ class _TIMUIKitFileElemState extends TIMUIKitState<TIMUIKitFileElem> {
     super.initState();
     if (!PlatformUtils().isWeb) {
       Future.delayed(const Duration(microseconds: 10), () {
-        hasFile();
+        if (mounted) hasFile();
       });
     }
   }
@@ -95,7 +96,7 @@ class _TIMUIKitFileElemState extends TIMUIKitState<TIMUIKitFileElem> {
     }
     advancedMsgListener = V2TimAdvancedMsgListener(
       onMessageDownloadProgressCallback: (V2TimMessageDownloadProgress messageProgress) async {
-        if (messageProgress.msgID == widget.message.msgID) {
+        if (mounted && messageProgress.msgID == widget.message.msgID) {
           if (messageProgress.isError || messageProgress.errorCode != 0) {
             setState(() {
               _downloadFailed = true;
@@ -117,7 +118,7 @@ class _TIMUIKitFileElemState extends TIMUIKitState<TIMUIKitFileElem> {
               }
             }
           } else {
-            final currentProgress = (messageProgress.currentSize / messageProgress.totalSize * 100).floor();
+            final currentProgress = messageProgress.totalSize > 0 ? (messageProgress.currentSize / messageProgress.totalSize * 100).floor().clamp(0, 100) : 0;
             if (mounted && currentProgress > downloadProgress) {
               setState(() {
                 downloadProgress = currentProgress;
@@ -131,44 +132,16 @@ class _TIMUIKitFileElemState extends TIMUIKitState<TIMUIKitFileElem> {
     return true;
   }
 
-  Future<String> getSavePath() async {
-    String savePathWithAppPath = '/storage/emulated/0/Android/data/com.tencent.flutter.tuikit/cache/' +
-        (widget.message.msgID ?? "") +
-        widget.fileElem!.fileName!;
-    return savePathWithAppPath;
-  }
-
   Future<bool> hasFile() async {
-    if (PlatformUtils().isWeb) {
+    if (PlatformUtils().isWeb) return true;
+    for (final path in [model.getFileMessageLocation(widget.messageID),
+        widget.message.fileElem?.localUrl, widget.message.fileElem?.path]) {
+      if (path == null || path.isEmpty || !await File(path).exists()) continue;
+      if (!mounted) return false;
+      filePath = path;
+      if (downloadProgress != 100) setState(() => downloadProgress = 100);
       return true;
     }
-    String savePath = TencentUtils.checkString(model.getFileMessageLocation(widget.messageID)) ??
-        TencentUtils.checkString(widget.message.fileElem!.localUrl) ??
-        widget.message.fileElem?.path ??
-        '';
-
-    File f = File(savePath);
-    if (widget.messageID != null) {
-      if (f.existsSync()) {
-        filePath = savePath;
-        if (downloadProgress != 100) {
-          setState(() {
-            downloadProgress = 100;
-          });
-        }
-        if (model.getMessageProgress(widget.messageID) != 100) {
-          model.setMessageProgress(widget.messageID!, 100);
-        }
-        if (advancedMsgListener != null) {
-          TencentImSDKPlugin.v2TIMManager.getMessageManager().removeAdvancedMsgListener(listener: advancedMsgListener);
-          advancedMsgListener = null;
-        }
-        return true;
-      } else {
-        model.setMessageProgress(widget.messageID!, 0);
-      }
-    }
-
     return false;
   }
 
@@ -206,26 +179,7 @@ class _TIMUIKitFileElemState extends TIMUIKitState<TIMUIKitFileElem> {
   }
 
   downloadFile(TUITheme theme) async {
-    if (PlatformUtils().isMobile) {
-      if (PlatformUtils().isIOS) {
-        if (!await Permissions.checkPermission(context, Permission.photosAddOnly.value, theme, false)) {
-          return;
-        }
-      } else {
-        final DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
-        AndroidDeviceInfo androidInfo = await deviceInfo.androidInfo;
-        if ((androidInfo.version.sdkInt) >= 33) {
-        } else {
-          var storage = await Permissions.checkPermission(
-            context,
-            Permission.storage.value,
-          );
-          if (!storage) {
-            return;
-          }
-        }
-      }
-    }
+    // SDK 下载写入应用缓存目录，原文件打开无需相册权限。
     await model.downloadFile();
   }
 
@@ -244,28 +198,10 @@ class _TIMUIKitFileElemState extends TIMUIKitState<TIMUIKitFileElem> {
       onTIMCallback(TIMCallback(type: TIMCallbackType.INFO, infoRecommendText: "不支持 0KB 文件的传输", infoCode: 6660417));
       return;
     }
-    if (PlatformUtils().isMobile) {
-      if (PlatformUtils().isIOS) {
-        if (!await Permissions.checkPermission(context, Permission.photosAddOnly.value, theme!, false)) {
-          return;
-        }
-      } else {
-        final DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
-        AndroidDeviceInfo androidInfo = await deviceInfo.androidInfo;
-        if ((androidInfo.version.sdkInt) >= 33) {
-        } else {
-          var storage = await Permissions.checkPermission(
-            context,
-            Permission.storage.value,
-          );
-          if (!storage) {
-            return;
-          }
-        }
-      }
-    }
-
     try {
+      filePath = await namedAttachmentCopy(filePath,
+          MediaMessageMetadata.fileName(widget.message.cloudCustomData, widget.fileElem?.fileName));
+      if (!mounted) return;
       if (PlatformUtils().isDesktop && !PlatformUtils().isWindows) {
         launchUrl(Uri.file(filePath));
       } else {
@@ -295,14 +231,14 @@ class _TIMUIKitFileElemState extends TIMUIKitState<TIMUIKitFileElem> {
       final html.Blob blob = html.Blob([response.bodyBytes]);
 
       downloadAnchor.href = html.Url.createObjectUrlFromBlob(blob);
-      downloadAnchor.download = widget.message.fileElem?.fileName ?? fileName;
+      downloadAnchor.download = MediaMessageMetadata.fileName(widget.message.cloudCustomData, widget.fileElem?.fileName, fallback: fileName);
 
       downloadAnchor.click();
     } catch (e) {
       html.AnchorElement(
         href: widget.fileElem?.path ?? "",
       )
-        ..setAttribute("download", widget.message.fileElem?.fileName ?? fileName)
+        ..setAttribute("download", MediaMessageMetadata.fileName(widget.message.cloudCustomData, widget.fileElem?.fileName, fallback: fileName))
         ..setAttribute("target", '_blank')
         ..style.display = "none"
         ..click();
@@ -318,7 +254,7 @@ class _TIMUIKitFileElemState extends TIMUIKitState<TIMUIKitFileElem> {
   Widget tuiBuild(BuildContext context, TUIKitBuildValue value) {
     final theme = value.theme;
     final received = downloadProgress;
-    final fileName = widget.fileElem!.fileName ?? "";
+    final fileName = MediaMessageMetadata.fileName(widget.message.cloudCustomData, widget.fileElem?.fileName);
     final fileSize = widget.fileElem!.fileSize;
     final borderRadius = widget.isSelf
         ? const BorderRadius.only(
@@ -333,7 +269,7 @@ class _TIMUIKitFileElemState extends TIMUIKitState<TIMUIKitFileElem> {
             bottomRight: Radius.circular(10));
     String? fileFormat;
     if (widget.fileElem?.fileName != null && widget.fileElem!.fileName!.isNotEmpty) {
-      final String fileName = widget.fileElem!.fileName!;
+      final String fileName = MediaMessageMetadata.fileName(widget.message.cloudCustomData, widget.fileElem?.fileName);
       fileFormat = fileName.split(".")[max(fileName.split(".").length - 1, 0)];
     }
     final RenderBox? containerRenderBox = containerKey.currentContext?.findRenderObject() as RenderBox?;
@@ -362,6 +298,7 @@ class _TIMUIKitFileElemState extends TIMUIKitState<TIMUIKitFileElem> {
             message: widget.message,
             child: GestureDetector(
               onTap: () async {
+                if (widget.message.status == MessageStatus.V2TIM_MSG_STATUS_SENDING) return;
                 try {
                   if (PlatformUtils().isWeb) {
                     if (!isWebDownloading) {
@@ -370,9 +307,10 @@ class _TIMUIKitFileElemState extends TIMUIKitState<TIMUIKitFileElem> {
                     return;
                   }
 
+                  if (mounted && _downloadFailed == true) setState(() => _downloadFailed = false);
                   await addAdvancedMsgListenerForDownload();
                   if (await hasFile()) {
-                    if (received == 100) {
+                    if (mounted) {
                       tryOpenFile(context, theme);
                     } else {
                       onTIMCallback(
@@ -400,7 +338,7 @@ class _TIMUIKitFileElemState extends TIMUIKitState<TIMUIKitFileElem> {
                 }
               },
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxHeight: 72),
+                constraints: const BoxConstraints(minHeight: 72),
                 child: Container(
                   width: 170,
                   decoration: BoxDecoration(
@@ -408,16 +346,7 @@ class _TIMUIKitFileElemState extends TIMUIKitState<TIMUIKitFileElem> {
                         color: theme.weakDividerColor ?? CommonColor.weakDividerColor,
                       ),
                       borderRadius: borderRadius),
-                  child: Stack(children: [
-                    ClipRRect(
-                      borderRadius: borderRadius,
-                      child: LinearProgressIndicator(
-                        minHeight: ((containerHeight) ?? 72) - 6,
-                        value: (received == 100 ? 0 : received) / 100,
-                        backgroundColor: received == 100 ? theme.weakBackgroundColor : Colors.white,
-                        valueColor: AlwaysStoppedAnimation(theme.lightPrimaryMaterialColor.shade50),
-                      ),
-                    ),
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
                     Padding(
                         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
                         child: Row(
@@ -454,6 +383,23 @@ class _TIMUIKitFileElemState extends TIMUIKitState<TIMUIKitFileElem> {
                                 fileFormat: fileFormat,
                               ),
                             ])),
+                    if (_downloadFailed == true) Text(mediaMessageText('downloadFailed',
+                        locale: Localizations.localeOf(context).toString()),
+                        style: TextStyle(color: theme.weakTextColor)),
+                    ListenableBuilder(listenable: model, builder: (_, __) {
+                      final progressModel = model;
+                      final sending = widget.message.status == MessageStatus.V2TIM_MSG_STATUS_SENDING;
+                      final percent = sending ? progressModel.uploadProgressFor(widget.message) : received;
+                      if (!sending && (percent == 0 || percent == 100)) return const SizedBox.shrink();
+                      return Padding(
+                        padding: const EdgeInsets.fromLTRB(12, 0, 12, 6),
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                          Text('$percent%', style: TextStyle(fontSize: 11, color: theme.weakTextColor)),
+                          LinearProgressIndicator(minHeight: 3, value: percent / 100,
+                            color: Colors.grey, backgroundColor: Colors.black12),
+                        ]),
+                      );
+                    }),
                   ]),
                 ),
               ),

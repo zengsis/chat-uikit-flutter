@@ -1,3 +1,4 @@
+import 'package:tencent_cloud_chat_uikit/ui/widgets/mobile_attachment_picker.dart';
 import 'dart:async';
 import 'dart:io';
 import 'dart:math';
@@ -41,7 +42,6 @@ import 'package:tencent_cloud_chat_uikit/ui/widgets/wide_popup.dart';
 import 'package:universal_html/html.dart' as html;
 import 'package:url_launcher/url_launcher.dart';
 import 'package:uuid/uuid.dart';
-import 'package:wechat_assets_picker/wechat_assets_picker.dart';
 import 'package:tencent_cloud_chat_uikit/base_widgets/tim_callback.dart';
 import 'package:tencent_cloud_chat_uikit/theme/color.dart';
 import 'package:tencent_cloud_chat_uikit/theme/tui_theme.dart';
@@ -466,6 +466,10 @@ class _TIMUIKitTextFieldLayoutWideState extends TIMUIKitState<TIMUIKitTextFieldL
     TUIChatSeparateViewModel model,
     TUITheme theme,
   ) async {
+    if (PlatformUtils().isMobile) {
+      await _pickMobileAttachment(model, 'file');
+      return;
+    }
     if (!PlatformUtils().isWeb) {
       _addGreyOverlay();
     }
@@ -614,38 +618,16 @@ class _TIMUIKitTextFieldLayoutWideState extends TIMUIKitState<TIMUIKitTextFieldL
     }
   }
 
-  _sendVideoMessage(AssetEntity asset, TUIChatSeparateViewModel model) async {
+  bool _pickingAttachment = false;
+  Future<void> _pickMobileAttachment(TUIChatSeparateViewModel model, String source) async {
+    if (_pickingAttachment) return;
+    _pickingAttachment = true;
+    final host = Navigator.of(context, rootNavigator: true).context;
     try {
-      final plugin = FcNativeVideoThumbnail();
-      final originFile = await asset.originFile;
-      final size = await originFile!.length();
-      if (size >= 104857600) {
-        onTIMCallback(
-            TIMCallback(type: TIMCallbackType.INFO, infoRecommendText: TIM_t("发送失败,视频不能大于100MB"), infoCode: 6660405));
-        return;
-      }
-
-      final duration = asset.videoDuration.inSeconds;
-      final filePath = originFile.path;
-      final convID = widget.conversationID;
-      final convType = widget.conversationType;
-
-      String tempPath = (await getTemporaryDirectory()).path + p.extension(originFile.path, 3) + ".jpeg";
-
-      await plugin.getVideoThumbnail(
-        srcFile: originFile.path,
-        destFile: tempPath,
-        format: 'jpeg',
-        width: 128,
-        quality: 100,
-        height: 128,
-      );
-      MessageUtils.handleMessageError(
-          model.sendVideoMessage(
-              videoPath: filePath, duration: duration, snapshotPath: tempPath, convID: convID, convType: convType),
-          context);
-    } catch (e) {
-      onTIMCallback(TIMCallback(type: TIMCallbackType.INFO, infoRecommendText: TIM_t("视频文件异常"), infoCode: 6660415));
+      await MobileAttachmentPicker.open(host, model, widget.conversationID,
+          widget.conversationType, source: source);
+    } finally {
+      _pickingAttachment = false;
     }
   }
 
@@ -655,25 +637,7 @@ class _TIMUIKitTextFieldLayoutWideState extends TIMUIKitState<TIMUIKitTextFieldL
       final convType = widget.conversationType;
 
       if (PlatformUtils().isMobile) {
-        final pickedAssets = await AssetPicker.pickAssets(context);
-
-        if (pickedAssets != null) {
-          for (var asset in pickedAssets) {
-            final originFile = await asset.originFile;
-            final filePath = originFile?.path;
-            final type = asset.type;
-            if (filePath != null) {
-              if (type == AssetType.image) {
-                MessageUtils.handleMessageError(
-                    model.sendImageMessage(imagePath: filePath, convID: convID, convType: convType), context);
-              }
-
-              if (type == AssetType.video) {
-                _sendVideoMessage(asset, model);
-              }
-            }
-          }
-        }
+        await _pickMobileAttachment(model, 'gallery');
       } else {
         final plugin = FcNativeVideoThumbnail();
         _addGreyOverlay();

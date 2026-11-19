@@ -1,3 +1,5 @@
+import 'package:tencent_cloud_chat_uikit/ui/utils/media_upload_progress.dart';
+import 'package:tencent_cloud_chat_uikit/data_services/message/native_message_result.dart';
 // ignore_for_file: avoid_print, unnecessary_getters_setters, unused_element
 import 'dart:async';
 import 'dart:convert';
@@ -355,7 +357,9 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
     }
   }
 
+  int sessionRevision = 0;
   clearData() {
+    sessionRevision++;
     _messageListMap.clear();
     _currentConversationList.clear();
     _totalUnreadCount = 0;
@@ -364,6 +368,7 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
     _receivedNewMessageCount = 0;
     _messageReadReceiptMap.clear();
     _messageListProgressMap.clear();
+    uploadProgress.clear();
     notifyListeners();
   }
 
@@ -691,8 +696,11 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
     } catch (e) {}
   }
 
-  _onSendMessageProgress(V2TimMessage messagae, int progress) {
-    outputLogger.i("message progress: $progress");
+  final uploadProgress = MediaUploadProgress();
+  int uploadProgressFor(V2TimMessage message) => uploadProgress.progressFor(message);
+  _onSendMessageProgress(V2TimMessage message, int progress) {
+    uploadProgress.record(message, progress);
+    notifyListeners();
   }
 
   Future<void> onMessageDownloadProgressCallback(V2TimMessageDownloadProgress messageProgress) async {
@@ -814,11 +822,12 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
         loadingMessage[convID] = <V2TimMessage>[messageInfoWithSender];
       }
       return _sendMessage(
+        messageInfo: messageInfoWithSender,
         priority: priority,
         onlineUserOnly: onlineUserOnly,
         isExcludedFromUnreadCount: isExcludedFromUnreadCount,
         needReadReceipt: needReadReceipt,
-        cloudCustomData: cloudCustomData,
+        cloudCustomData: cloudCustomData ?? messageInfo.cloudCustomData,
         localCustomData: localCustomData,
         isExcludedFromContentModeration: messageInfo.isExcludedFromContentModeration ?? false,
         convID: convID,
@@ -937,6 +946,7 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
 
   Future<V2TimValueCallback<V2TimMessage>> _sendMessage({
     required String id,
+    V2TimMessage? messageInfo,
     required String convID,
     required ConvType convType,
     OfflinePushInfo? offlinePushInfo,
@@ -953,7 +963,7 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
   }) async {
     String receiver = convType == ConvType.c2c ? convID : '';
     String groupID = convType == ConvType.group ? convID : '';
-    final sendMsgRes = await _messageService.sendMessage(
+    final sendMsgRes = await sendNativeMessage(messageInfo, () => _messageService.sendMessage(
         id: id,
         receiver: receiver,
         needReadReceipt: needReadReceipt ?? chatConfig.isShowReadingStatus,
@@ -970,7 +980,7 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
                 "needTyping": 1,
                 "version": 1,
               }
-            }));
+            })));
     if (isEditStatusMessage == false) {
       updateMessage(sendMsgRes, convID, id, convType, groupType, setInputField);
     }

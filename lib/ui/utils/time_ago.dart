@@ -1,9 +1,12 @@
+import 'media_message_text.dart';
 // ignore_for_file: prefer_typing_uninitialized_variables
 
 import 'package:intl/intl.dart';
 import 'package:tencent_chat_i18n_tool/tencent_chat_i18n_tool.dart';
 
 class TimeAgo {
+  TimeAgo({this.locale});
+  final String? locale;
   List<String> dayMap() {
     return [
       TIM_t("昨天"),
@@ -66,7 +69,7 @@ class TimeAgo {
         res = getYearMonthDate(date);
       }
     } else {
-      if (diffMinutes > 1) {
+      if (diffMinutes >= 1) {
         if (diffMinutes < 60) {
           final String option2 = diffMinutes.toString();
           res = TIM_t_para("{{option2}} 分钟前", "$option2 分钟前")(option2: option2);
@@ -75,7 +78,7 @@ class TimeAgo {
           // res = "$prefix $timeStr";
         }
       } else {
-        res = TIM_t("现在");
+        res = mediaMessageText('justNow', locale: locale);
       }
     }
 
@@ -105,7 +108,10 @@ class TimeAgo {
       String option2 = timeStr;
       return TIM_t_para("昨天 {{option2}}", "昨天 $option2")(option2: option2);
     }
-    // 同年月日 时间 (24小时制)
+    if (DateTime.now().difference(ftime).inSeconds >= 0 &&
+        DateTime.now().difference(ftime).inSeconds < 60) {
+      return mediaMessageText('justNow', locale: locale);
+    }
     return timeStr;
   }
 }

@@ -241,7 +241,7 @@ class _MessageReadReceiptState extends TIMUIKitState<MessageReadReceipt> {
                           Text(MessageUtils.getDisplayName(widget.messageItem)),
                           const SizedBox(width: 8),
                           Text(
-                            TimeAgo().getTimeForMessage(widget.messageItem.timestamp ?? 0),
+                            TimeAgo(locale: Localizations.localeOf(context).toString()).getTimeForMessage(widget.messageItem.timestamp ?? 0),
                             softWrap: true,
                             style: TextStyle(fontSize: 12, color: theme.weakTextColor),
                           )

@@ -1,3 +1,4 @@
+import 'package:tencent_cloud_chat_uikit/ui/utils/media_message_source.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
@@ -161,41 +162,24 @@ class _VideoScreenState extends TIMUIKitState<VideoScreen> {
     return;
   }
 
+  bool _savingVideo = false;
   Future<void> _saveVideo() async {
     if (PlatformUtils().isWeb) {
-      return await _saveNetworkVideo(
-        context,
-        widget.videoElement.videoPath!,
-        isAsset: true,
-      );
+      final url = widget.videoElement.videoUrl ?? widget.videoElement.videoPath;
+      if (url != null) await _saveNetworkVideo(context, url);
+      return;
     }
-    if (widget.videoElement.videoPath != '' &&
-        widget.videoElement.videoPath != null &&
-        File(widget.videoElement.videoPath!).existsSync()) {
-      File f = File(widget.videoElement.videoPath!);
-      if (f.existsSync()) {
-        return await _saveNetworkVideo(
-          context,
-          widget.videoElement.videoPath!,
-          isAsset: true,
-        );
-      }
+    if (_savingVideo) return;
+    _savingVideo = true;
+    try {
+      final path = await downloadOriginalVideo(widget.message, '${TIM_t("视频")}.mp4');
+      if (mounted) await _saveNetworkVideo(context, path);
+    } catch (_) {
+      if (mounted) onTIMCallback(TIMCallback(type: TIMCallbackType.INFO,
+          infoRecommendText: TIM_t("视频保存失败"), infoCode: 6660403));
+    } finally {
+      _savingVideo = false;
     }
-    if (widget.videoElement.localVideoUrl != '' && widget.videoElement.localVideoUrl != null) {
-      File f = File(widget.videoElement.localVideoUrl!);
-      if (f.existsSync()) {
-        return await _saveNetworkVideo(
-          context,
-          widget.videoElement.localVideoUrl!,
-          isAsset: true,
-        );
-      }
-    }
-    return await _saveNetworkVideo(
-      context,
-      widget.videoElement.videoUrl!,
-      isAsset: false,
-    );
   }
 
   double getVideoHeight() {

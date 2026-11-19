@@ -700,7 +700,7 @@ class _TIMUIKItHistoryMessageListItemState extends TIMUIKitState<TIMUIKitHistory
       child: Text(
         model.chatConfig.timeDividerConfig?.timestampParser != null
             ? (model.chatConfig.timeDividerConfig?.timestampParser!(timeStamp))!
-            : TimeAgo().getTimeForMessage(timeStamp),
+            : TimeAgo(locale: Localizations.localeOf(context).toString()).getTimeForMessage(timeStamp),
         style: widget.themeData?.timelineTextStyle ??
             TextStyle(
               fontSize: 12,

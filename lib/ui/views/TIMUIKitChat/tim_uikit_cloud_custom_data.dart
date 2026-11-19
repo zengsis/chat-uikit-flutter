@@ -49,16 +49,18 @@ class RepliedMessageAbstract {
 }
 
 class CloudCustomData {
+  Map<String, dynamic> _original = {};
   Map<String, dynamic>? messageReply;
   Map<String, dynamic>? messageReaction = {};
 
   CloudCustomData.fromJson(Map jsonMap) {
+    _original = Map<String, dynamic>.from(jsonMap);
     messageReply = jsonMap["messageReply"];
     messageReaction = jsonMap["messageReaction"] ?? {};
   }
 
-  Map<String, Map?> toMap() {
-    final Map<String, Map?> data = {};
+  Map<String, dynamic> toMap() {
+    final data = Map<String, dynamic>.from(_original);
     if (messageReply != null) {
       data['messageReply'] = messageReply;
     }

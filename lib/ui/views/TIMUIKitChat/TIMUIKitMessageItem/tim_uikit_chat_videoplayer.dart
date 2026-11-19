@@ -1,209 +1,171 @@
-import 'dart:io';
-
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:better_player_plus/better_player_plus.dart';
-import 'package:tencent_cloud_chat_sdk/enum/message_elem_type.dart';
+import 'package:flutter/material.dart';
+import 'package:open_file/open_file.dart';
+import 'package:tencent_chat_i18n_tool/tencent_chat_i18n_tool.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_message.dart'
     if (dart.library.html) 'package:tencent_cloud_chat_sdk/web/compatible_models/v2_tim_message.dart';
-import 'package:tencent_cloud_chat_sdk/models/v2_tim_message_online_url.dart'
-    if (dart.library.html) 'package:tencent_cloud_chat_sdk/web/compatible_models/v2_tim_message_online_url.dart';
-import 'package:tencent_cloud_chat_sdk/models/v2_tim_value_callback.dart'
-    if (dart.library.html) 'package:tencent_cloud_chat_sdk/web/compatible_models/v2_tim_value_callback.dart';
-import 'package:tencent_cloud_chat_sdk/tencent_im_sdk_plugin.dart';
-import 'package:tencent_cloud_chat_uikit/tencent_cloud_chat_uikit.dart';
+import 'package:tencent_cloud_chat_uikit/ui/utils/media_message_metadata.dart';
+import 'package:tencent_cloud_chat_uikit/ui/utils/media_message_source.dart';
+import 'package:tencent_cloud_chat_uikit/ui/utils/media_message_text.dart';
 
 class TIMUIKitVideoPlayer extends StatefulWidget {
+  const TIMUIKitVideoPlayer(
+      {super.key,
+      required this.message,
+      required this.controller,
+      required this.isSending});
   final V2TimMessage message;
-  final bool controller;
-  final bool isSending;
-
-  const TIMUIKitVideoPlayer({
-    super.key,
-    required this.message,
-    required this.controller,
-    required this.isSending,
-  });
-
+  final bool controller, isSending;
   @override
-  State<StatefulWidget> createState() => TIMUIKitVideoPlayerState();
-}
-
-enum CurrentVideoType {
-  online,
-  local,
-}
-
-class CurrentVideoInfo {
-  final String path;
-  final CurrentVideoType type;
-  final double aspectRatio;
-
-  CurrentVideoInfo({
-    required this.path,
-    required this.type,
-    required this.aspectRatio,
-  });
+  State<TIMUIKitVideoPlayer> createState() => TIMUIKitVideoPlayerState();
 }
 
 class TIMUIKitVideoPlayerState extends State<TIMUIKitVideoPlayer> {
-  final String _tag = "TencentCloudChatMessageVideoPlayer";
-
-  BetterPlayerController? _betterPlayerController;
+  BetterPlayerController? player;
+  bool failed = false, downloading = false;
+  int generation = 0;
 
   @override
   void initState() {
     super.initState();
-    _initializePlayer();
+    initialize();
   }
 
-  Future<void> _initializePlayer() async {
+  Future<void> initialize({bool refresh = false}) async {
+    final retry = refresh || failed;
+    final request = ++generation;
+    player?.dispose();
+    player = null;
+    setState(() => failed = false);
     try {
-      final info = await getMessageInfo();
-      if (info != null && mounted) {
-        BetterPlayerDataSource dataSource;
-        if (info.type == CurrentVideoType.online) {
-          dataSource = BetterPlayerDataSource(
-            BetterPlayerDataSourceType.network,
-            info.path,
-          );
-        } else {
-          dataSource = BetterPlayerDataSource(
-            BetterPlayerDataSourceType.file,
-            info.path,
-          );
-        }
-
-        final betterPlayerConfiguration = BetterPlayerConfiguration(
-          aspectRatio: info.aspectRatio,
-          fit: BoxFit.contain,
-          autoPlay: true,
-          allowedScreenSleep: false,
-          fullScreenByDefault: false,
-          controlsConfiguration: const BetterPlayerControlsConfiguration(
-            enableFullscreen: false,
-            enablePlayPause: true,
-            enableProgressBar: true,
-            enableProgressText: true,
-            showControlsOnInitialize: false,
-            enableMute: false,
-            enableOverflowMenu: false,
-            enableSkips: false,
-          ),
-        );
-
-        _betterPlayerController = BetterPlayerController(
-          betterPlayerConfiguration,
-          betterPlayerDataSource: dataSource,
-        );
-
-        if (mounted) {
-          setState(() {});
-        }
+      if (!widget.isSending || localMessageVideo(widget.message) == null) {
+        await resolveVideoMessageUrl(widget.message, refresh: retry);
       }
-    } catch (e) {
-      debugPrint("Video initialization error: $e");
+    } catch (_) {/* 在线地址查询失败时仍可播放有效本地文件。 */}
+    if (!mounted || request != generation) return;
+    final local = localMessageVideo(widget.message);
+    final remote =
+        MediaMessageMetadata.remoteUrl(widget.message.videoElem?.videoUrl);
+    // 发送中优先本地预览，已发送消息优先远端资源。
+    final path = widget.isSending ? local ?? remote : remote ?? local;
+    if (path == null) {
+      setState(() => failed = true);
+      return;
+    }
+    final online = MediaMessageMetadata.remoteUrl(path) != null;
+    final config = BetterPlayerConfiguration(
+      autoPlay: false,
+      fit: BoxFit.contain,
+      allowedScreenSleep: false,
+      autoDispose: false,
+      errorBuilder: (_, __) => errorView(),
+      controlsConfiguration: const BetterPlayerControlsConfiguration(
+          enableFullscreen: false,
+          enableOverflowMenu: false,
+          enableSkips: false),
+    );
+    final controller = BetterPlayerController(config);
+    player = controller;
+    try {
+      await controller
+          .setupDataSource(BetterPlayerDataSource(
+              online
+                  ? BetterPlayerDataSourceType.network
+                  : BetterPlayerDataSourceType.file,
+              path))
+          .timeout(const Duration(seconds: 20));
+      if (mounted && request == generation) setState(() {});
+    } catch (_) {
+      if (mounted && request == generation) setState(() => failed = true);
     }
   }
+
+  Future<void> download() async {
+    if (downloading) return;
+    setState(() => downloading = true);
+    try {
+      if (kIsWeb) {
+        final url =
+            MediaMessageMetadata.remoteUrl(widget.message.videoElem?.videoUrl);
+        if (url == null || !await launchUrl(Uri.parse(url))) {
+          throw const FormatException('missing_video_source');
+        }
+        return;
+      }
+      final path =
+          await downloadOriginalVideo(widget.message, '${TIM_t("视频")}.mp4');
+      if (!mounted) return;
+      final result = await OpenFile.open(path);
+      if (mounted && result.type != ResultType.done) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(TIM_t('视频保存成功'))));
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(TIM_t('视频保存失败'))));
+      }
+    } finally {
+      if (mounted) setState(() => downloading = false);
+    }
+  }
+
+  String label(String key) =>
+      mediaMessageText(key, locale: Localizations.localeOf(context).toString());
+
+  Widget errorView() => Center(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Text(label('playFailed'), style: const TextStyle(color: Colors.white)),
+        TextButton(
+            onPressed: () => initialize(refresh: true),
+            child: Text(label('retry'))),
+        TextButton(
+            onPressed: downloading ? null : download,
+            child: Text(label('original'))),
+      ]));
 
   @override
   void dispose() {
-    _betterPlayerController?.dispose();
+    generation++;
+    player?.dispose();
     super.dispose();
-  }
-
-  Future<CurrentVideoInfo?> getMessageInfo() async {
-    if (widget.message.elemType == MessageElemType.V2TIM_ELEM_TYPE_VIDEO) {
-      double aspectRatio = (9 / 16);
-
-      if (widget.isSending) {
-        var lp = widget.message.videoElem!.videoPath ?? "";
-        if (lp.isNotEmpty) {
-          console("view sending message video path");
-          if (File(lp).existsSync() && !kIsWeb) {
-            return CurrentVideoInfo(path: lp, type: CurrentVideoType.local, aspectRatio: aspectRatio);
-          }
-        }
-      }
-
-      if (widget.message.videoElem!.snapshotWidth != null && widget.message.videoElem!.snapshotHeight != null) {
-        if (widget.message.videoElem!.snapshotHeight != 0) {
-          aspectRatio = (widget.message.videoElem!.snapshotWidth!) / (widget.message.videoElem!.snapshotHeight!);
-        }
-      }
-
-      if (TencentUtils.checkString(widget.message.videoElem!.videoPath) != null) {
-        // 先查本地发送的视频地址
-        if (File(widget.message.videoElem!.videoPath!).existsSync()) {
-          console("video: local video path exists");
-          return CurrentVideoInfo(
-              path: widget.message.videoElem!.videoPath!, type: CurrentVideoType.local, aspectRatio: aspectRatio);
-        }
-      } else if (TencentUtils.checkString(widget.message.videoElem!.localVideoUrl) != null) {
-        // 再查本地下载的视频地址
-        if (File(widget.message.videoElem!.localVideoUrl!).existsSync()) {
-          console("video: local url exists");
-          return CurrentVideoInfo(
-              path: widget.message.videoElem!.localVideoUrl!, type: CurrentVideoType.local, aspectRatio: aspectRatio);
-        }
-      } else {
-        // 最后再查在线地址(todo 使用 getMessageOnlineUrl 查询)
-        if (widget.message.videoElem != null) {
-          if (widget.message.videoElem!.snapshotUrl != null) {
-            console("video: online url ${widget.message.videoElem!.videoUrl}");
-            return CurrentVideoInfo(
-              path: widget.message.videoElem!.videoUrl!,
-              type: CurrentVideoType.online,
-              aspectRatio: aspectRatio,
-            );
-          }
-        }
-        if (!kIsWeb) {
-          V2TimValueCallback<V2TimMessageOnlineUrl> urlres = await TencentImSDKPlugin.v2TIMManager
-              .getMessageManager()
-              .getMessageOnlineUrl(msgID: widget.message.msgID ?? "");
-          if (urlres.data != null) {
-            if (urlres.data?.videoElem != null) {
-              if (TencentUtils.checkString(urlres.data?.videoElem?.videoUrl) != null) {
-                console("view video online url ${urlres.data?.videoElem?.videoUrl}");
-                return CurrentVideoInfo(
-                    path: urlres.data!.videoElem!.videoUrl!, type: CurrentVideoType.online, aspectRatio: aspectRatio);
-              }
-            }
-          }
-        }
-      }
-    } else {
-      console("The component received a non-video message parameter. please check");
-    }
-    console("has no view video source. please check");
-    return null;
-  }
-
-  console(String log) {
-    print("$_tag, $log");
   }
 
   @override
   Widget build(BuildContext context) {
     if (widget.message.hasRiskContent == true) {
-      return const Center(
-        child: Text(
-          "Risk Video",
-          style: TextStyle(color: Colors.white),
-        ),
-      );
+      return Center(child: Text(TIM_t('视频加载失败')));
     }
-
-    if (_betterPlayerController == null) {
-      return Container();
+    if (failed) return errorView();
+    final controller = player;
+    if (controller == null) {
+      return const Center(child: CircularProgressIndicator());
     }
-
-    return AspectRatio(
-      aspectRatio: _betterPlayerController!.videoPlayerController?.value.aspectRatio ?? 9 / 16,
-      child: BetterPlayer(
-        controller: _betterPlayerController!,
-      ),
-    );
+    return Stack(children: [
+      Center(
+          child: AspectRatio(
+              aspectRatio:
+                  controller.videoPlayerController?.value.aspectRatio ?? 16 / 9,
+              child: BetterPlayer(controller: controller))),
+      Positioned(
+          top: 50,
+          left: 16,
+          right: 16,
+          child: Text(
+              MediaMessageMetadata.fileName(
+                  widget.message.cloudCustomData, null,
+                  fallback: TIM_t('视频')),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: Colors.white))),
+      Positioned(
+          bottom: 16,
+          right: 70,
+          child: TextButton(
+              onPressed: downloading ? null : download,
+              child: Text(label('original')))),
+    ]);
   }
 }

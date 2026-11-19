@@ -1,3 +1,4 @@
+import 'package:tencent_cloud_chat_uikit/ui/utils/media_message_metadata.dart';
 // ignore_for_file: unrelated_type_equality_checks, avoid_print
 
 import 'dart:convert';
@@ -316,7 +317,7 @@ class MessageUtils {
       case MessageElemType.V2TIM_ELEM_TYPE_FACE:
         return TIM_t("[表情]");
       case MessageElemType.V2TIM_ELEM_TYPE_FILE:
-        final String? option2 = message.fileElem!.fileName ?? "";
+        final String? option2 = MediaMessageMetadata.fileName(message.cloudCustomData, message.fileElem?.fileName);
         return TIM_t_para("[文件] {{option2}}", "[文件] $option2")(option2: option2);
       case MessageElemType.V2TIM_ELEM_TYPE_GROUP_TIPS:
         return TIM_t("群提示");

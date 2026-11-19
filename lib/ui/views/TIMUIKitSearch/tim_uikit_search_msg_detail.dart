@@ -1,3 +1,4 @@
+import 'package:tencent_cloud_chat_uikit/ui/utils/media_message_metadata.dart';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -103,7 +104,7 @@ class TIMUIKitSearchMsgDetailState extends TIMUIKitState<TIMUIKitSearchMsgDetail
       case MessageElemType.V2TIM_ELEM_TYPE_FACE:
         return TIM_t("[表情]");
       case MessageElemType.V2TIM_ELEM_TYPE_FILE:
-        final option1 = message.fileElem!.fileName;
+        final option1 = MediaMessageMetadata.fileName(message.cloudCustomData, message.fileElem?.fileName);
         return TIM_t_para("[文件] {{option1}}", "[文件] $option1")(option1: option1);
       case MessageElemType.V2TIM_ELEM_TYPE_IMAGE:
         return TIM_t("[图片]");
@@ -135,7 +136,7 @@ class TIMUIKitSearchMsgDetailState extends TIMUIKitState<TIMUIKitSearchMsgDetail
               message.sender ??
               "",
           lineOneRight:
-              (isDesktopScreen && message.timestamp != null) ? TimeAgo().getTimeForMessage(message.timestamp!) : null,
+              (isDesktopScreen && message.timestamp != null) ? TimeAgo(locale: Localizations.localeOf(context).toString()).getTimeForMessage(message.timestamp!) : null,
           lineTwo: _getMsgElem(message),
           onClick: () {
             focusNode.unfocus();

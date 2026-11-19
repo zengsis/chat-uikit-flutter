@@ -1,3 +1,6 @@
+import 'package:tencent_cloud_chat_uikit/data_services/message/native_message_result.dart';
+import 'package:tencent_cloud_chat_uikit/data_services/message/forward_native_messages.dart';
+import 'package:tencent_cloud_chat_uikit/ui/utils/media_message_metadata.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -708,9 +711,10 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
       await loadGroupInfo(groupID);
     }
     if (messageInfo != null) {
+      globalModel.uploadProgress.record(messageInfo, 0);
       setLoadingMessageMap(convID, messageInfo);
     }
-    final sendMsgRes = await _messageService.sendMessage(
+    final sendMsgRes = await sendNativeMessage(messageInfo, () => _messageService.sendMessage(
       priority: priority,
       localCustomData: localCustomData,
       isExcludedFromUnreadCount: isExcludedFromUnreadCount ?? false,
@@ -721,7 +725,7 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
       offlinePushInfo: offlinePushInfo,
       onlineUserOnly: onlineUserOnly ?? false,
       isExcludedFromContentModeration: isExcludedFromContentModeration ?? false,
-      cloudCustomData: cloudCustomData ??
+      cloudCustomData: cloudCustomData ?? messageInfo?.cloudCustomData ??
           (showC2cMessageEditStatus == true
               ? json.encode({
                   "messageFeature": {
@@ -730,7 +734,7 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
                   }
                 })
               : ""),
-    );
+    ));
     removeSendingMessageID(id);
     if (isEditStatusMessage == false &&
         globalModel.getMessageListPosition(conversationID) != HistoryMessagePosition.notShowLatest) {
@@ -979,6 +983,8 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
       {String? videoPath,
       int? duration,
       String? snapshotPath,
+      String? fileName,
+      double? videoDuration,
       required String convID,
       required ConvType convType,
       dynamic inputElement}) async {
@@ -989,9 +995,14 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
         duration: duration,
         inputElement: inputElement,
         snapshotPath: snapshotPath);
-    final messageInfo = videoMessageInfo!.messageInfo;
+    final messageInfo = videoMessageInfo?.messageInfo;
     if (messageInfo != null) {
-      final messageInfoWithSender = tools.setUserInfoForMessage(messageInfo, videoMessageInfo.id);
+      final messageInfoWithSender = tools.setUserInfoForMessage(messageInfo, videoMessageInfo!.id);
+      messageInfoWithSender.cloudCustomData = MediaMessageMetadata.merge(
+        messageInfo.cloudCustomData,
+        fileName: fileName ?? videoPath?.split('/').last,
+        seconds: videoDuration ?? duration,
+      );
       messageInfoWithSender.status = MessageStatus.V2TIM_MSG_STATUS_SENDING;
       addSendingMessageID(messageInfo.id);
       if (globalModel.getMessageListPosition(conversationID) != HistoryMessagePosition.notShowLatest) {
@@ -1027,9 +1038,13 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
     final fileMessageInfo = await _messageService.createFileMessage(
         inputElement: inputElement, fileName: fileName ?? filePath?.split('/').last ?? "", filePath: filePath);
     List<V2TimMessage> currentHistoryMsgList = getOriginMessageList();
-    final messageInfo = fileMessageInfo!.messageInfo;
+    final messageInfo = fileMessageInfo?.messageInfo;
     if (messageInfo != null) {
-      final messageInfoWithSender = tools.setUserInfoForMessage(messageInfo, fileMessageInfo.id);
+      final messageInfoWithSender = tools.setUserInfoForMessage(messageInfo, fileMessageInfo!.id);
+      messageInfoWithSender.cloudCustomData = MediaMessageMetadata.merge(
+        messageInfo.cloudCustomData,
+        fileName: fileName ?? filePath?.split('/').last,
+      );
       messageInfoWithSender.status = MessageStatus.V2TIM_MSG_STATUS_SENDING;
       addSendingMessageID(messageInfo.id);
       messageInfoWithSender.fileElem!.fileSize = size;
@@ -1079,43 +1094,9 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
     return null;
   }
 
-  /// 逐条转发
-  sendForwardMessage({
-    required List<V2TimConversation> conversationList,
-  }) async {
-    final selectedMessages = getSelectedMessageList();
-    for (var conversation in conversationList) {
-      final convID = conversation.groupID ?? conversation.userID ?? "";
-      final convType = conversation.type;
-      List<V2TimMessage> currentHistoryMsgList = globalModel.messageListMap[conversationID] ?? [];
-      for (var message in selectedMessages) {
-        final forwardMessageInfo = await _messageService.createForwardMessage(msgID: message.msgID!);
-        final messageInfo = forwardMessageInfo!.messageInfo;
-        if (messageInfo != null) {
-          tools.setUserInfoForMessage(messageInfo, forwardMessageInfo.id);
-          messageInfo.status = MessageStatus.V2TIM_MSG_STATUS_SENDING;
-          addSendingMessageID(messageInfo.id);
-          // 如果转发的会话是当前会话，则直接添加到当前会话的消息列表中
-          if (convID == conversationID) {
-            if (globalModel.getMessageListPosition(convID) != HistoryMessagePosition.notShowLatest) {
-              currentHistoryMsgList = [messageInfo, ...currentHistoryMsgList];
-              globalModel.setMessageList(conversationID, currentHistoryMsgList);
-              _notify();
-            }
-          }
-          await Future.delayed(Duration(milliseconds: 100), () {
-            _sendMessage(
-              id: forwardMessageInfo.id!,
-              convID: convID,
-              convType: convType == 1 ? ConvType.c2c : ConvType.group,
-              offlinePushInfo: tools.buildMessagePushInfo(
-                  forwardMessageInfo.messageInfo!, convID, convType == 1 ? ConvType.c2c : ConvType.group),
-            );
-          });
-        }
-      }
-    }
-  }
+  /// SDK 原类型转发，并保留原有扩展字段。
+  sendForwardMessage({required List<V2TimConversation> conversationList}) =>
+      forwardNativeMessages(this, conversationList, _messageService);
 
   /// 合并转发
   Future<V2TimValueCallback<V2TimMessage>?> sendMergerMessage({
@@ -1167,7 +1148,11 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
       return null;
     }
 
-    currentHistoryMsgList.removeWhere((element) => element.msgID == message.msgID);
+    final messageKey = message.msgID?.isNotEmpty == true ? message.msgID! : message.id ?? '';
+    if (messageKey.isEmpty) return null;
+    currentHistoryMsgList.removeWhere((element) => identical(element, message) ||
+        (message.id != null && element.id == message.id) ||
+        (message.msgID?.isNotEmpty == true && element.msgID == message.msgID));
     message.status = MessageStatus.V2TIM_MSG_STATUS_SENDING;
     addSendingMessageID(message.msgID);
     globalModel.setMessageList(convID, currentHistoryMsgList);
@@ -1177,11 +1162,19 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
       _notify();
     }
 
+    globalModel.uploadProgress.record(message, 0);
     // 重发该消息
-    final res = await _messageService.reSendMessage(msgID: message.msgID ?? "", onlineUserOnly: false);
-    removeSendingMessageID(message.msgID ?? "");
+    final res = await sendNativeMessage(message, () =>
+        message.msgID?.isNotEmpty == true
+            ? _messageService.reSendMessage(msgID: messageKey, onlineUserOnly: false)
+            : _messageService.sendMessage(id: messageKey,
+                receiver: convType == ConvType.c2c ? convID : '',
+                groupID: convType == ConvType.group ? convID : '',
+                cloudCustomData: message.cloudCustomData));
+
+    removeSendingMessageID(messageKey);
     if (globalModel.getMessageListPosition(conversationID) != HistoryMessagePosition.notShowLatest) {
-      globalModel.updateMessage(res, convID, message.msgID!, convType, groupType, setInputField);
+      globalModel.updateMessage(res, convID, messageKey, convType, groupType, setInputField);
     }
 
     if (lifeCycle?.messageDidSend != null) {
@@ -1245,7 +1238,7 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
         onlineUserOnly: onlineUserOnly,
         isExcludedFromUnreadCount: isExcludedFromUnreadCount,
         needReadReceipt: needReadReceipt,
-        cloudCustomData: cloudCustomData,
+        cloudCustomData: cloudCustomData ?? messageInfo.cloudCustomData,
         localCustomData: localCustomData,
         convID: conversationID,
         id: messageInfo.id as String,

@@ -1,3 +1,4 @@
+import 'package:tencent_cloud_chat_uikit/ui/widgets/mobile_attachment_picker.dart';
 // ignore_for_file: unused_field, avoid_print, unused_import
 
 import 'dart:io';
@@ -103,18 +104,17 @@ class _MorePanelState extends TIMUIKitState<MorePanel> {
   final ScrollController _scrollController = ScrollController();
   final DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
 
-  late BetterPlayerController _betterPlayerController;
 
   @override
   void initState() {
     super.initState();
     if (PlatformUtils().isMobile) {
       _tUICore.getService(TUICALLKIT_SERVICE_NAME).then((value) {
+        if (!mounted) return;
         setState(() {
           isInstallCallkit = value;
         });
       });
-      _betterPlayerController = BetterPlayerController(const BetterPlayerConfiguration());
     }
   }
 
@@ -328,32 +328,19 @@ class _MorePanelState extends TIMUIKitState<MorePanel> {
     }).toList();
   }
 
-  _sendVideoMessage(String originFilePath, int duration, int size, TUIChatSeparateViewModel model) async {
-    if (size >= MorePanelConfig.VIDEO_MAX_SIZE) {
-      onTIMCallback(TIMCallback(type: TIMCallbackType.INFO, infoRecommendText: TIM_t("文件大小超出了限制")));
-      return;
+  Future<void> _pickAttachment(TUIChatSeparateViewModel model, String source) async {
+    if (_pickingAttachment) return;
+    _pickingAttachment = true;
+    final host = Navigator.of(context, rootNavigator: true).context;
+    try {
+      await MobileAttachmentPicker.open(host, model, widget.conversationID,
+          widget.conversationType, source: source);
+    } finally {
+      _pickingAttachment = false;
     }
-
-    final plugin = FcNativeVideoThumbnail();
-
-    final convID = widget.conversationID;
-    final convType = widget.conversationType;
-
-    String tempPath = (await getTemporaryDirectory()).path + p.basename(originFilePath) + ".jpeg";
-
-    await plugin.getVideoThumbnail(
-      srcFile: originFilePath,
-      destFile: tempPath,
-      format: 'jpeg',
-      width: 1280,
-      quality: 100,
-      height: 1280,
-    );
-    MessageUtils.handleMessageError(
-        model.sendVideoMessage(
-            videoPath: originFilePath, duration: duration, snapshotPath: tempPath, convID: convID, convType: convType),
-        context);
   }
+
+  bool _pickingAttachment = false;
 
   _sendImageMessage(TUIChatSeparateViewModel model, TUITheme theme) async {
     try {
@@ -400,31 +387,7 @@ class _MorePanelState extends TIMUIKitState<MorePanel> {
       final convType = widget.conversationType;
 
       if (PlatformUtils().isMobile) {
-        final pickedAssets = await AssetPicker.pickAssets(context);
-
-        if (pickedAssets != null) {
-          for (var asset in pickedAssets) {
-            final originFile = await asset.originFile;
-            final filePath = originFile?.path;
-            final type = asset.type;
-            final size = await originFile!.length();
-            if (filePath != null) {
-              if (type == AssetType.image) {
-                if (size >= MorePanelConfig.IMAGE_MAX_SIZE) {
-                  onTIMCallback(TIMCallback(type: TIMCallbackType.INFO, infoRecommendText: TIM_t("文件大小超出了限制")));
-                  return;
-                }
-
-                MessageUtils.handleMessageError(
-                    model.sendImageMessage(imagePath: filePath, convID: convID, convType: convType), context);
-              }
-
-              if (type == AssetType.video) {
-                _sendVideoMessage(originFile!.path, asset.videoDuration.inSeconds, size, model);
-              }
-            }
-          }
-        }
+        await _pickAttachment(model, 'gallery');
       } else {
         FilePickerResult? result = await FilePicker.platform.pickFiles(type: FileType.media);
         if (result != null && result.files.isNotEmpty) {
@@ -464,42 +427,7 @@ class _MorePanelState extends TIMUIKitState<MorePanel> {
         theme,
       );
 
-      final convID = widget.conversationID;
-      final convType = widget.conversationType;
-      final ImagePicker picker = ImagePicker();
-      XFile? originFile;
-      if (isVideo) {
-        originFile = await picker.pickVideo(source: ImageSource.camera);
-      } else {
-        originFile = await picker.pickImage(source: ImageSource.camera);
-      }
-      final size = await originFile!.length();
-      if (!isVideo) {
-        if (size >= MorePanelConfig.IMAGE_MAX_SIZE) {
-          onTIMCallback(TIMCallback(type: TIMCallbackType.INFO, infoRecommendText: TIM_t("文件大小超出了限制")));
-          return;
-        }
-
-        MessageUtils.handleMessageError(
-            model.sendImageMessage(imagePath: originFile.path, convID: convID, convType: convType), context);
-      } else {
-        // 监听视频准备完成事件
-        _betterPlayerController.addEventsListener((event) {
-          if (event.betterPlayerEventType == BetterPlayerEventType.initialized) {
-            // 获取视频时长（单位：秒）
-            int durationInSeconds = _betterPlayerController.videoPlayerController?.value.duration?.inSeconds ?? 0;
-            _sendVideoMessage(originFile!.path, durationInSeconds, size, model);
-          }
-        });
-
-        // 加载视频源
-        _betterPlayerController.setupDataSource(
-          BetterPlayerDataSource(
-            BetterPlayerDataSourceType.file,
-            originFile.path, // 替换为你的视频 URL
-          ),
-        );
-      }
+      await _pickAttachment(model, isVideo ? 'cameraVideo' : 'cameraImage');
     } catch (error) {
       outputLogger.i("err: $error");
     }
@@ -557,6 +485,10 @@ class _MorePanelState extends TIMUIKitState<MorePanel> {
     TUIChatSeparateViewModel model,
     TUITheme theme,
   ) async {
+    if (PlatformUtils().isMobile) {
+      await _pickAttachment(model, 'file');
+      return;
+    }
     try {
       final convID = widget.conversationID;
       final convType = widget.conversationType;
@@ -573,8 +505,7 @@ class _MorePanelState extends TIMUIKitState<MorePanel> {
           return;
         }
 
-        String? option2 = result.files.single.path ?? "";
-        outputLogger.i(TIM_t_para("选择成功{{option2}}", "选择成功$option2")(option2: option2));
+
 
         File file = File(result.files.single.path!);
         final int size = file.lengthSync();
@@ -678,7 +609,6 @@ class _MorePanelState extends TIMUIKitState<MorePanel> {
 
   @override
   void dispose() {
-    _betterPlayerController?.dispose();
     super.dispose();
   }
 
