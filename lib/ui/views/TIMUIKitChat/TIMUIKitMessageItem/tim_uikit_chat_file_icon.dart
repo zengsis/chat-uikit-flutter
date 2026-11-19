@@ -1,7 +1,7 @@
 // ignore_for_file: must_be_immutable
 
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:tencent_cloud_chat_uikit/theme/color.dart';
 import 'package:tencent_cloud_chat_uikit/base_widgets/tim_ui_kit_base.dart';
 import 'package:tencent_cloud_chat_uikit/base_widgets/tim_ui_kit_statelesswidget.dart';
 
@@ -9,7 +9,7 @@ class TIMUIKitFileIcon extends TIMUIKitStatelessWidget {
   final String? fileFormat;
   final double? size;
 
-  TIMUIKitFileIcon( {this.size, this.fileFormat, Key? key}) : super(key: key);
+  TIMUIKitFileIcon({this.size, this.fileFormat, Key? key}) : super(key: key);
 
   Map fileMap = {
     "doc": "images/word.png",
@@ -42,7 +42,13 @@ class TIMUIKitFileIcon extends TIMUIKitStatelessWidget {
     "flv": "images/video_icon.png",
   };
 
-  Widget _getFileIcon() {
+  Widget _getFileIcon(Color primaryColor) {
+    if (const {'mp4', 'avi', 'mov', 'wmv', 'flv', 'mkv', 'webm', '3gp', 'm4v'}
+        .contains(fileFormat?.toLowerCase())) {
+      return Center(
+          child: Icon(Icons.video_file_rounded,
+              size: (size ?? 50) * .84, color: primaryColor));
+    }
     return Image.asset(
       fileMap[fileFormat?.toLowerCase()] ?? "images/unknown.png",
       package: 'tencent_cloud_chat_uikit',
@@ -54,7 +60,10 @@ class TIMUIKitFileIcon extends TIMUIKitStatelessWidget {
     return SizedBox(
       height: size ?? 50,
       width: size ?? 50,
-      child: Container(padding: const EdgeInsets.all(4), child: _getFileIcon()),
+      child: Padding(
+          padding: const EdgeInsets.all(4),
+          child: _getFileIcon(
+              value.theme.primaryColor ?? CommonColor.primaryColor)),
     );
   }
 }

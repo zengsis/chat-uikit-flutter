@@ -3,7 +3,7 @@ import 'dart:math';
 import 'package:extended_image/extended_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:loading_animation_widget/loading_animation_widget.dart';
+import 'package:tencent_cloud_chat_uikit/ui/widgets/image_download_button.dart';
 import 'package:tencent_cloud_chat_uikit/base_widgets/tim_ui_kit_state.dart';
 import 'package:tencent_cloud_chat_uikit/ui/widgets/gestured_image.dart';
 import 'package:tencent_cloud_chat_uikit/base_widgets/tim_ui_kit_base.dart';
@@ -40,7 +40,6 @@ class _ImageScreenState extends TIMUIKitState<ImageScreen>
   double currentScale = 1.0;
   double fittedScale = 1.0;
   double initialScale = 1.0;
-  bool isLoading = false;
 
   GlobalKey<ExtendedImageSlidePageState> slidePageKey =
       GlobalKey<ExtendedImageSlidePageState>();
@@ -256,39 +255,9 @@ class _ImageScreenState extends TIMUIKitState<ImageScreen>
                 Positioned(
                   right: 10,
                   bottom: 50,
-                  child: SizedBox(
-                    width: 48,
-                    height: 48,
-                    child: IconButton(
-                      icon: Image.asset(
-                        'images/download.png',
-                        package: 'tencent_cloud_chat_uikit',
-                      ),
-                      iconSize: 30,
-                      onPressed: () async {
-                        setState(() {
-                          isLoading = true;
-                        });
-                        await widget.downloadFn!();
-                        Future.delayed(const Duration(milliseconds: 200),(){
-                          setState(() {
-                            isLoading = false;
-                          });
-                        });
-                      },
-                    ),
-                  ),
-                ),
-              if (isLoading)
-                Container(
-                  child: LoadingAnimationWidget.staggeredDotsWave(
-                    size: 35,
-                    color: Colors.white,
-                  ),
-                  padding: const EdgeInsets.all(30),
-                  decoration: const BoxDecoration(
-                    color: Color(0xB22b2b2b),
-                    borderRadius: BorderRadius.all(Radius.circular(20)),
+                  child: ImageDownloadButton(
+                    key: ValueKey(widget.messageID ?? widget.heroTag),
+                    onDownload: widget.downloadFn!,
                   ),
                 ),
             ])),

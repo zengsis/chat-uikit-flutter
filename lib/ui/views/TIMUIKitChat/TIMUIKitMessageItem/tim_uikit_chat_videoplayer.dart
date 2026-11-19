@@ -9,15 +9,21 @@ import 'package:tencent_cloud_chat_sdk/models/v2_tim_message.dart'
 import 'package:tencent_cloud_chat_uikit/ui/utils/media_message_metadata.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/media_message_source.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/media_message_text.dart';
+import 'package:tencent_cloud_chat_uikit/theme/color.dart';
+import 'package:tencent_cloud_chat_uikit/ui/widgets/im_video_controls.dart';
 
 class TIMUIKitVideoPlayer extends StatefulWidget {
   const TIMUIKitVideoPlayer(
       {super.key,
       required this.message,
       required this.controller,
-      required this.isSending});
+      required this.isSending,
+      this.onSave,
+      this.saving = false});
   final V2TimMessage message;
   final bool controller, isSending;
+  final Future<void> Function()? onSave;
+  final bool saving;
   @override
   State<TIMUIKitVideoPlayer> createState() => TIMUIKitVideoPlayerState();
 }
@@ -57,17 +63,25 @@ class TIMUIKitVideoPlayerState extends State<TIMUIKitVideoPlayer> {
     final online = MediaMessageMetadata.remoteUrl(path) != null;
     final config = BetterPlayerConfiguration(
       autoPlay: false,
+      aspectRatio: videoAspectRatio(),
       fit: BoxFit.contain,
       allowedScreenSleep: false,
       autoDispose: false,
       errorBuilder: (_, __) => errorView(),
-      controlsConfiguration: const BetterPlayerControlsConfiguration(
-          enableFullscreen: false,
-          enableOverflowMenu: false,
-          enableSkips: false),
+      controlsConfiguration:
+          const BetterPlayerControlsConfiguration(showControls: false),
     );
     final controller = BetterPlayerController(config);
     player = controller;
+    controller.addEventsListener((event) {
+      if (event.betterPlayerEventType == BetterPlayerEventType.initialized &&
+          mounted &&
+          request == generation) {
+        // 初始化完成后按媒体真实比例布局，避免竖屏视频被横屏容器缩小。
+        controller.setOverriddenAspectRatio(videoAspectRatio());
+        setState(() {});
+      }
+    });
     try {
       await controller
           .setupDataSource(BetterPlayerDataSource(
@@ -84,6 +98,8 @@ class TIMUIKitVideoPlayerState extends State<TIMUIKitVideoPlayer> {
 
   Future<void> download() async {
     if (downloading) return;
+    final message = widget.message;
+    String? downloadedPath;
     setState(() => downloading = true);
     try {
       if (kIsWeb) {
@@ -94,34 +110,55 @@ class TIMUIKitVideoPlayerState extends State<TIMUIKitVideoPlayer> {
         }
         return;
       }
-      final path =
-          await downloadOriginalVideo(widget.message, '${TIM_t("视频")}.mp4');
-      if (!mounted) return;
-      final result = await OpenFile.open(path);
-      if (mounted && result.type != ResultType.done) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(TIM_t('视频保存成功'))));
-      }
+      final path = await downloadOriginalVideo(message, '${TIM_t("视频")}.mp4');
+      if (!mounted || widget.message != message) return;
+      downloadedPath = path;
+      _showDownloadResult(true);
     } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(TIM_t('视频保存失败'))));
-      }
+      if (mounted && widget.message == message) _showDownloadResult(false);
     } finally {
       if (mounted) setState(() => downloading = false);
     }
+    if (downloadedPath == null || !mounted || widget.message != message) return;
+    try {
+      await OpenFile.open(downloadedPath);
+    } catch (_) {
+      // 外部打开属于辅助操作，失败时仍保留已经提示的下载成功结果。
+    }
+  }
+
+  void _showDownloadResult(bool success) {
+    if (ModalRoute.of(context)?.isCurrent == false) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content:
+            Text(label(success ? 'downloadSucceeded' : 'downloadFailed'))));
   }
 
   String label(String key) =>
       mediaMessageText(key, locale: Localizations.localeOf(context).toString());
 
+  double videoAspectRatio() {
+    final size = player?.videoPlayerController?.value.size;
+    if (size != null && size.width > 0 && size.height > 0) {
+      return size.width / size.height;
+    }
+    final element = widget.message.videoElem;
+    final width = element?.snapshotWidth ?? 0;
+    final height = element?.snapshotHeight ?? 0;
+    return width > 0 && height > 0 ? width / height : 16 / 9;
+  }
+
   Widget errorView() => Center(
           child: Column(mainAxisSize: MainAxisSize.min, children: [
         Text(label('playFailed'), style: const TextStyle(color: Colors.white)),
         TextButton(
+            style:
+                TextButton.styleFrom(foregroundColor: CommonColor.primaryColor),
             onPressed: () => initialize(refresh: true),
             child: Text(label('retry'))),
         TextButton(
+            style:
+                TextButton.styleFrom(foregroundColor: CommonColor.primaryColor),
             onPressed: downloading ? null : download,
             child: Text(label('original'))),
       ]));
@@ -136,36 +173,24 @@ class TIMUIKitVideoPlayerState extends State<TIMUIKitVideoPlayer> {
   @override
   Widget build(BuildContext context) {
     if (widget.message.hasRiskContent == true) {
-      return Center(child: Text(TIM_t('视频加载失败')));
+      return Center(
+          child: Text(TIM_t('视频加载失败'),
+              style: const TextStyle(color: Colors.white70)));
     }
     if (failed) return errorView();
     final controller = player;
     if (controller == null) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(
+          child: CircularProgressIndicator(color: CommonColor.primaryColor));
     }
-    return Stack(children: [
-      Center(
-          child: AspectRatio(
-              aspectRatio:
-                  controller.videoPlayerController?.value.aspectRatio ?? 16 / 9,
-              child: BetterPlayer(controller: controller))),
-      Positioned(
-          top: 50,
-          left: 16,
-          right: 16,
-          child: Text(
-              MediaMessageMetadata.fileName(
-                  widget.message.cloudCustomData, null,
-                  fallback: TIM_t('视频')),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(color: Colors.white))),
-      Positioned(
-          bottom: 16,
-          right: 70,
-          child: TextButton(
-              onPressed: downloading ? null : download,
-              child: Text(label('original')))),
-    ]);
+    return IMVideoControls(
+        controller: controller,
+        onVisibilityChanged: controller.setControlsVisibility,
+        onSave: widget.onSave ?? download,
+        isSaving: widget.saving || downloading,
+        child: Center(
+            child: AspectRatio(
+                aspectRatio: videoAspectRatio(),
+                child: BetterPlayer(controller: controller))));
   }
 }

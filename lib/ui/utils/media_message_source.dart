@@ -6,7 +6,10 @@ import 'package:tencent_cloud_chat_sdk/models/v2_tim_message.dart'
     if (dart.library.html) 'package:tencent_cloud_chat_sdk/web/compatible_models/v2_tim_message.dart';
 import 'package:tencent_cloud_chat_sdk/tencent_im_sdk_plugin.dart';
 import 'package:video_player/video_player.dart';
+import 'package:flutter/services.dart';
+import 'package:fc_native_video_thumbnail/fc_native_video_thumbnail.dart';
 import 'media_message_metadata.dart';
+import 'logger.dart';
 
 /// URL 缺失时从原生 SDK 获取在线资源，封面可独立缺失。
 Future<void> resolveVideoMessageUrl(V2TimMessage message,
@@ -115,4 +118,67 @@ Future<String> namedAttachmentCopy(String source, String name) async {
           DateTime.now().microsecondsSinceEpoch.toString()))
       .create(recursive: true);
   return (await File(source).copy(p.join(folder.path, safeName))).path;
+}
+
+/// 播放器仅补充精确时长，本机解码失败不等同于视频不能上传。
+Future<double?> inspectAttachmentVideo(String path,
+    {double? fallbackSeconds}) async {
+  final player = VideoPlayerController.file(File(path));
+  try {
+    await player.initialize().timeout(const Duration(seconds: 15));
+    final seconds = MediaMessageMetadata.positiveSeconds(
+        player.value.duration.inMilliseconds / 1000);
+    if (seconds != null) return seconds;
+  } catch (error) {
+    outputLogger.i('scope=im.media event=video_duration_fallback '
+        'error_type=${error.runtimeType}');
+  } finally {
+    try {
+      await player.dispose().timeout(const Duration(seconds: 3));
+    } catch (error) {
+      outputLogger.i('scope=im.media event=video_probe_dispose_failed '
+          'error_type=${error.runtimeType}');
+    }
+  }
+  return MediaMessageMetadata.positiveSeconds(fallbackSeconds);
+}
+
+/// SDK 要求本地封面存在；依次使用相册封面、视频抽帧、现有占位资源。
+Future<String> prepareVideoSnapshot(String videoPath,
+    {String? existing}) async {
+  if (existing != null &&
+      await File(existing).exists() &&
+      await File(existing).length() > 0) {
+    return existing;
+  }
+  final directory = await getTemporaryDirectory();
+  final path =
+      p.join(directory.path, 'im-${DateTime.now().microsecondsSinceEpoch}.jpg');
+  outputLogger.i('scope=im.media event=video_cover_started');
+  try {
+    final ok = await FcNativeVideoThumbnail()
+        .getVideoThumbnail(
+            srcFile: videoPath,
+            destFile: path,
+            format: 'jpeg',
+            width: 1280,
+            height: 1280,
+            quality: 85)
+        .timeout(const Duration(seconds: 10));
+    if (ok && await File(path).exists() && await File(path).length() > 0) {
+      outputLogger.i('scope=im.media event=video_cover_succeeded');
+      return path;
+    }
+  } catch (error) {
+    outputLogger.i('scope=im.media event=video_cover_failed '
+        'error_type=${error.runtimeType}');
+  }
+  final data = await rootBundle
+      .load('packages/tencent_cloud_chat_uikit/images/video_icon.png');
+  final placeholder = File(p.setExtension(path, '.png'));
+  await placeholder.writeAsBytes(
+      data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes),
+      flush: true);
+  outputLogger.i('scope=im.media event=video_cover_placeholder');
+  return placeholder.path;
 }

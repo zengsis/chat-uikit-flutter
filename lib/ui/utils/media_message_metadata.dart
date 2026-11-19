@@ -51,6 +51,18 @@ class MediaMessageMetadata {
     return '${total ~/ 60}:${(total % 60).toString().padLeft(2, '0')}';
   }
 
+  static String formatFileSize(int bytes) {
+    if (bytes < 1024) return '${bytes < 0 ? 0 : bytes} B';
+    const units = ['B', 'KB', 'MB', 'GB'];
+    var size = bytes.toDouble();
+    var unit = 0;
+    while (size >= 1024 && unit < units.length - 1) {
+      size /= 1024;
+      unit++;
+    }
+    return '${size.toStringAsFixed(2)} ${units[unit]}';
+  }
+
   static String? remoteUrl(String? value) {
     final uri = Uri.tryParse(value ?? '');
     return uri != null &&

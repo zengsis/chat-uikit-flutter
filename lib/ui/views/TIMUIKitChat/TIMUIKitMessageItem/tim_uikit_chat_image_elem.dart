@@ -117,117 +117,65 @@ class _TIMUIKitImageElem extends TIMUIKitState<TIMUIKitImageElem> {
     return res;
   }
 
-  //保存网络图片到本地
+  // 保存结果由预览页显示；权限拒绝、资源缺失和平台失败都向调用方抛出。
   Future<void> _saveImageToLocal(
-    context,
+    BuildContext context,
     String imageUrl, {
     bool isLocalResource = true,
     TUITheme? theme,
   }) async {
     if (PlatformUtils().isWeb) {
-      download(imageUrl) async {
-        final http.Response r = await http.get(Uri.parse(imageUrl));
-        final data = r.bodyBytes;
-        final base64data = base64Encode(data);
-        final a = html.AnchorElement(href: 'data:image/jpeg;base64,$base64data');
-        a.download = md5.convert(utf8.encode(imageUrl)).toString();
-        a.click();
-        a.remove();
+      final response = await http.get(Uri.parse(imageUrl));
+      if (response.statusCode != HttpStatus.ok) {
+        throw const HttpException('image_download_failed');
       }
-
-      download(imageUrl);
+      final data = base64Encode(response.bodyBytes);
+      final anchor = html.AnchorElement(href: 'data:image/jpeg;base64,$data');
+      anchor.download = md5.convert(utf8.encode(imageUrl)).toString();
+      anchor.click();
+      anchor.remove();
       return;
     }
-
-    if (PlatformUtils().isIOS) {
-      if (!await Permissions.checkPermission(context, Permission.photosAddOnly.value, theme!, false)) {
-        return;
-      }
-    } else {
-      final DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
-      AndroidDeviceInfo androidInfo = await deviceInfo.androidInfo;
-      if (PlatformUtils().isMobile) {
-        if ((androidInfo.version.sdkInt) >= 33) {
-          final photos = await Permissions.checkPermission(
-            context,
-            Permission.photos.value,
-            theme,
-          );
-          if (!photos) {
-            return;
-          }
-        } else {
-          final storage = await Permissions.checkPermission(
-            context,
-            Permission.storage.value,
-          );
-          if (!storage) {
-            return;
-          }
-        }
-      }
-    }
-
+    await _checkImageSavePermission(context, theme);
+    String savePath = imageUrl;
     if (!isLocalResource) {
-      if (widget.message.msgID == null || widget.message.msgID!.isEmpty) {
-        return;
+      final id = widget.message.msgID;
+      if (id == null || id.isEmpty || model.getMessageProgress(id) != 100) {
+        throw StateError('image_not_downloaded');
       }
-
-      if (model.getMessageProgress(widget.message.msgID) == 100) {
-        String savePath;
-        if (widget.message.imageElem!.path != null &&
-            widget.message.imageElem!.path != '' &&
-            File(widget.message.imageElem!.path!).existsSync()) {
-          savePath = widget.message.imageElem!.path!;
-        } else {
-          savePath = model.getFileMessageLocation(widget.message.msgID);
-        }
-        File f = File(savePath);
-        if (f.existsSync()) {
-          var result = await ImageGallerySaverPlus.saveFile(savePath);
-
-          if (PlatformUtils().isIOS) {
-            if (result['isSuccess']) {
-              onTIMCallback(
-                  TIMCallback(type: TIMCallbackType.INFO, infoRecommendText: TIM_t("图片保存成功"), infoCode: 6660406));
-            } else {
-              onTIMCallback(
-                  TIMCallback(type: TIMCallbackType.INFO, infoRecommendText: TIM_t("图片保存失败"), infoCode: 6660407));
-            }
-          } else {
-            if (result != null) {
-              onTIMCallback(
-                  TIMCallback(type: TIMCallbackType.INFO, infoRecommendText: TIM_t("图片保存成功"), infoCode: 6660406));
-            } else {
-              onTIMCallback(
-                  TIMCallback(type: TIMCallbackType.INFO, infoRecommendText: TIM_t("图片保存失败"), infoCode: 6660407));
-            }
-          }
-          return;
-        }
-      } else {
-        onTIMCallback(TIMCallback(
-            type: TIMCallbackType.INFO, infoRecommendText: TIM_t("the message is downloading"), infoCode: -1));
-      }
-      return;
+      final local = widget.message.imageElem?.path;
+      savePath = local != null && File(local).existsSync()
+          ? local
+          : model.getFileMessageLocation(id);
     }
+    if (!await File(savePath).exists()) {
+      throw const FileSystemException('image_file_missing');
+    }
+    final result = await ImageGallerySaverPlus.saveFile(savePath);
+    if (result is! Map || result['isSuccess'] != true) {
+      throw StateError('image_save_failed');
+    }
+    if (!mounted) return;
+    onTIMCallback(TIMCallback(type: TIMCallbackType.INFO,
+        infoRecommendText: TIM_t("图片保存成功"), infoCode: 6660406));
+  }
 
-    var result = await ImageGallerySaverPlus.saveFile(imageUrl);
-
+  Future<void> _checkImageSavePermission(
+      BuildContext context, TUITheme? theme) async {
+    if (!PlatformUtils().isMobile) return;
+    final int permission;
     if (PlatformUtils().isIOS) {
-      if (result['isSuccess']) {
-        onTIMCallback(TIMCallback(type: TIMCallbackType.INFO, infoRecommendText: TIM_t("图片保存成功"), infoCode: 6660406));
-      } else {
-        onTIMCallback(TIMCallback(type: TIMCallbackType.INFO, infoRecommendText: TIM_t("图片保存失败"), infoCode: 6660407));
-      }
+      permission = Permission.photosAddOnly.value;
     } else {
-      if (result != null) {
-        onTIMCallback(TIMCallback(type: TIMCallbackType.INFO, infoRecommendText: TIM_t("图片保存成功"), infoCode: 6660406));
-      } else {
-        onTIMCallback(TIMCallback(type: TIMCallbackType.INFO, infoRecommendText: TIM_t("图片保存失败"), infoCode: 6660407));
-      }
+      final info = await DeviceInfoPlugin().androidInfo;
+      if (!context.mounted) throw StateError('image_preview_closed');
+      permission = info.version.sdkInt >= 33
+          ? Permission.photos.value : Permission.storage.value;
     }
-    return;
+    if (!context.mounted) throw StateError('image_preview_closed');
+    final granted = await Permissions.checkPermission(
+        context, permission, theme, !PlatformUtils().isIOS);
+    if (!granted) throw StateError('image_save_permission_denied');
   }
 
   Future<void> _saveImg(TUITheme theme) async {
@@ -262,9 +210,13 @@ class _TIMUIKitImageElem extends TIMUIKitState<TIMUIKitImageElem> {
           theme: theme,
         );
       }
-    } catch (e) {
-      onTIMCallback(TIMCallback(infoCode: 6660414, infoRecommendText: TIM_t("正在下载中"), type: TIMCallbackType.INFO));
-      return;
+      throw StateError('image_source_missing');
+    } catch (_) {
+      if (mounted) {
+        onTIMCallback(TIMCallback(infoCode: 6660407,
+            infoRecommendText: TIM_t("图片保存失败"), type: TIMCallbackType.INFO));
+      }
+      rethrow;
     }
   }
 

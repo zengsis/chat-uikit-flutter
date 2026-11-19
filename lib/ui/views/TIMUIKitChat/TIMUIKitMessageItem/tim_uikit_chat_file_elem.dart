@@ -70,6 +70,23 @@ class _TIMUIKitFileElemState extends TIMUIKitState<TIMUIKitFileElem> {
   final GlobalKey containerKey = GlobalKey();
   double? containerHeight;
   bool? _downloadFailed = false;
+  String? _pendingDownloadId;
+
+  void _showDownloadResult(bool success) {
+    if (!mounted ||
+        _pendingDownloadId == null ||
+        _pendingDownloadId != widget.message.msgID) {
+      return;
+    }
+    _pendingDownloadId = null;
+    if (ModalRoute.of(context)?.isCurrent == false) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(mediaMessageText(
+        success ? 'downloadSucceeded' : 'downloadFailed',
+        locale: Localizations.localeOf(context).toString(),
+      )),
+    ));
+  }
 
   @override
   void dispose() {
@@ -101,6 +118,7 @@ class _TIMUIKitFileElemState extends TIMUIKitState<TIMUIKitFileElem> {
             setState(() {
               _downloadFailed = true;
             });
+            _showDownloadResult(false);
             return;
           }
 
@@ -109,6 +127,7 @@ class _TIMUIKitFileElemState extends TIMUIKitState<TIMUIKitFileElem> {
               setState(() {
                 downloadProgress = 100;
               });
+              _showDownloadResult(true);
 
               if (advancedMsgListener != null) {
                 TencentImSDKPlugin.v2TIMManager
@@ -330,9 +349,11 @@ class _TIMUIKitFileElemState extends TIMUIKitState<TIMUIKitFileElem> {
                     );
                     return;
                   } else {
+                    _pendingDownloadId = widget.message.msgID;
                     await addUrlToWaitingPath(theme);
                   }
                 } catch (e) {
+                  _showDownloadResult(false);
                   onTIMCallback(
                       TIMCallback(type: TIMCallbackType.INFO, infoRecommendText: "文件处理异常", infoCode: 6660416));
                 }
@@ -340,7 +361,7 @@ class _TIMUIKitFileElemState extends TIMUIKitState<TIMUIKitFileElem> {
               child: ConstrainedBox(
                 constraints: const BoxConstraints(minHeight: 72),
                 child: Container(
-                  width: 170,
+                  width: min(260.0, MediaQuery.sizeOf(context).width * .68),
                   decoration: BoxDecoration(
                       border: Border.all(
                         color: theme.weakDividerColor ?? CommonColor.weakDividerColor,
@@ -348,7 +369,7 @@ class _TIMUIKitFileElemState extends TIMUIKitState<TIMUIKitFileElem> {
                       borderRadius: borderRadius),
                   child: Column(mainAxisSize: MainAxisSize.min, children: [
                     Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                        padding: const EdgeInsets.fromLTRB(12, 8, 6, 8),
                         child: Row(
                             mainAxisAlignment: widget.isSelf ? MainAxisAlignment.end : MainAxisAlignment.start,
                             children: [
@@ -356,21 +377,20 @@ class _TIMUIKitFileElemState extends TIMUIKitState<TIMUIKitFileElem> {
                                   child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Container(
-                                    constraints: const BoxConstraints(maxWidth: 160),
-                                    child: LayoutBuilder(
-                                      builder: (buildContext, boxConstraints) {
-                                        return CustomText(
-                                          fileName,
-                                          width: boxConstraints.maxWidth,
-                                          maxLines: 1,
-                                          style: TextStyle(
-                                            color: theme.darkTextColor,
-                                            fontSize: 16,
-                                          ),
-                                        );
-                                      },
-                                    ),
+                                  LayoutBuilder(
+                                    builder: (buildContext, boxConstraints) {
+                                      return CustomText(
+                                        fileName,
+                                        // 旧组件仅在初始化计算省略，布局变化时重新计算。
+                                        key: ValueKey('$fileName:${boxConstraints.maxWidth}'),
+                                        width: boxConstraints.maxWidth,
+                                        maxLines: 1,
+                                        style: TextStyle(
+                                          color: theme.darkTextColor,
+                                          fontSize: 16,
+                                        ),
+                                      );
+                                    },
                                   ),
                                   if (fileSize != null)
                                     Text(
@@ -379,6 +399,7 @@ class _TIMUIKitFileElemState extends TIMUIKitState<TIMUIKitFileElem> {
                                     )
                                 ],
                               )),
+                              const SizedBox(width: 4),
                               TIMUIKitFileIcon(
                                 fileFormat: fileFormat,
                               ),

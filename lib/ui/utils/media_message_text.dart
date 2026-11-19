@@ -12,6 +12,15 @@ String mediaMessageText(String key, {String? locale}) {
 }
 
 const _mediaTexts = {
+  'downloadSucceeded': {
+    'zh_CN': '下载成功',
+    'zh_TW': '下載成功',
+    'en': 'Download successful',
+    'ja': 'ダウンロードしました',
+    'ms': 'Muat turun berjaya',
+    'jv': 'Undhuhan kasil',
+    'id': 'Unduhan berhasil'
+  },
   'downloadFailed': {
     'zh_CN': '下载失败，点击重试',
     'zh_TW': '下載失敗，點擊重試',

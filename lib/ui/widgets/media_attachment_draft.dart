@@ -10,7 +10,8 @@ import 'package:tencent_cloud_chat_sdk/models/v2_tim_message.dart'
 import 'package:tencent_cloud_chat_uikit/business_logic/separate_models/tui_chat_separate_view_model.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/media_message_metadata.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/media_message_text.dart';
-import 'package:video_player/video_player.dart';
+import 'package:tencent_cloud_chat_uikit/theme/color.dart';
+import 'package:tencent_cloud_chat_uikit/ui/utils/logger.dart';
 
 enum MediaAttachmentKind { image, video, file }
 
@@ -53,40 +54,77 @@ Future<void> showMediaAttachmentDrafts(
     isScrollControlled: true,
     isDismissible: false,
     enableDrag: false,
+    backgroundColor: Colors.white,
     builder: (_) => MediaAttachmentSheet(
       drafts: drafts,
       current: current,
-      send: (draft) async {
-        if (draft.failedMessage != null) {
-          return model.reSendFailMessage(
-              message: draft.failedMessage!,
-              convID: conversation,
-              convType: type);
-        }
-        switch (draft.kind) {
-          case MediaAttachmentKind.video:
-            return model.sendVideoMessage(
-                videoPath: draft.path,
-                fileName: draft.name,
-                duration: draft.seconds?.floor(),
-                videoDuration: draft.seconds,
-                snapshotPath: draft.snapshot,
-                convID: conversation,
-                convType: type);
-          case MediaAttachmentKind.file:
-            return model.sendFileMessage(
-                filePath: draft.path,
-                fileName: draft.name,
-                size: await File(draft.path).length(),
-                convID: conversation,
-                convType: type);
-          case MediaAttachmentKind.image:
-            return model.sendImageMessage(
-                imagePath: draft.path, convID: conversation, convType: type);
-        }
-      },
+      send: (draft) =>
+          sendMediaAttachmentDraft(model, conversation, type, draft),
     ),
   );
+}
+
+/// 相册直接发送与确认弹窗共用原生消息发送入口。
+Future<V2TimValueCallback<V2TimMessage>?> sendMediaAttachmentDraft(
+  TUIChatSeparateViewModel model,
+  String conversation,
+  ConvType type,
+  MediaAttachmentDraft draft,
+) async {
+  if (draft.failedMessage != null) {
+    return model.reSendFailMessage(
+        message: draft.failedMessage!, convID: conversation, convType: type);
+  }
+  switch (draft.kind) {
+    case MediaAttachmentKind.video:
+      return model.sendVideoMessage(
+          videoPath: draft.path,
+          fileName: draft.name,
+          duration: draft.seconds?.floor() ?? 0,
+          videoDuration: draft.seconds,
+          snapshotPath: draft.snapshot,
+          convID: conversation,
+          convType: type);
+    case MediaAttachmentKind.file:
+      return model.sendFileMessage(
+          filePath: draft.path,
+          fileName: draft.name,
+          size: draft.bytes ?? await File(draft.path).length(),
+          convID: conversation,
+          convType: type);
+    case MediaAttachmentKind.image:
+      return model.sendImageMessage(
+          imagePath: draft.path, convID: conversation, convType: type);
+  }
+}
+
+/// 每条发送前重新核对账号和会话；单条失败保留聊天气泡并继续其余附件。
+Future<int> sendMediaAttachmentBatch(TUIChatSeparateViewModel model,
+    String conversation, ConvType type, List<MediaAttachmentDraft> drafts,
+    {required Future<bool> Function() current}) async {
+  var failures = 0;
+  outputLogger
+      .i('scope=im.media event=album_send_started count=${drafts.length}');
+  for (final draft in drafts) {
+    if (!await current()) {
+      outputLogger.i('scope=im.media event=album_send_cancelled');
+      return failures;
+    }
+    try {
+      final result =
+          await sendMediaAttachmentDraft(model, conversation, type, draft);
+      if (result == null || result.code != 0) {
+        draft.failedMessage = result?.data;
+        failures++;
+      }
+    } catch (error) {
+      failures++;
+      outputLogger.i('scope=im.media event=attachment_send_failed '
+          'kind=${draft.kind.name} error_type=${error.runtimeType}');
+    }
+  }
+  outputLogger.i('scope=im.media event=album_send_finished failures=$failures');
+  return failures;
 }
 
 class MediaAttachmentSheet extends StatefulWidget {
@@ -175,11 +213,23 @@ class _AttachmentSheetState extends State<MediaAttachmentSheet> {
               if (busy)
                 const Padding(
                     padding: EdgeInsets.all(16),
-                    child: CircularProgressIndicator()),
+                    child: CircularProgressIndicator(
+                        color: CommonColor.primaryColor)),
+              if (!busy) const SizedBox(height: 12),
               if (!busy)
-                FilledButton(
-                  onPressed: drafts.isEmpty ? null : submit,
-                  child: Text(TIM_t('发送')),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: CommonColor.primaryColor,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: drafts.isEmpty ? null : submit,
+                    child: Text(TIM_t('发送')),
+                  ),
                 ),
             ]),
           ),
@@ -192,20 +242,57 @@ class _AttachmentSheetState extends State<MediaAttachmentSheet> {
     if (draft.kind == MediaAttachmentKind.video) {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Stack(alignment: Alignment.bottomRight, children: [
-          SizedBox(
-              height: 180,
-              width: double.infinity,
-              child: draft.snapshot == null
-                  ? const Icon(Icons.videocam_outlined)
-                  : Image.file(File(draft.snapshot!),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: SizedBox(
+            height:
+                (MediaQuery.sizeOf(context).height * .28).clamp(140.0, 220.0),
+            width: double.infinity,
+            child: ColoredBox(
+              color: const Color(0xFF17191F),
+              child: Stack(fit: StackFit.expand, children: [
+                if (draft.snapshot != null)
+                  Image.file(File(draft.snapshot!),
                       fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) =>
-                          const Icon(Icons.videocam_outlined))),
-          const Center(child: Icon(Icons.play_circle_outline, size: 42)),
-          if (draft.seconds != null)
-            Text(MediaMessageMetadata.formatDuration(draft.seconds!)),
-        ]),
+                      errorBuilder: (_, __, ___) => const Icon(
+                          Icons.videocam_outlined,
+                          color: Colors.white38,
+                          size: 40))
+                else
+                  const Icon(Icons.videocam_outlined,
+                      color: Colors.white38, size: 40),
+                Center(
+                  child: Container(
+                    width: 52,
+                    height: 52,
+                    decoration: const BoxDecoration(
+                        shape: BoxShape.circle, color: Colors.black45),
+                    child: const Icon(Icons.play_arrow_rounded,
+                        size: 36, color: Colors.white),
+                  ),
+                ),
+                if (draft.seconds != null)
+                  Positioned(
+                    right: 10,
+                    bottom: 10,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                          color: Colors.black54,
+                          borderRadius: BorderRadius.circular(6)),
+                      child: Text(
+                          MediaMessageMetadata.formatDuration(draft.seconds!),
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500)),
+                    ),
+                  ),
+              ]),
+            ),
+          ),
+        ),
       );
     }
     if (draft.kind == MediaAttachmentKind.image) {
@@ -213,24 +300,52 @@ class _AttachmentSheetState extends State<MediaAttachmentSheet> {
           height: 120,
           child: Image.file(File(draft.path), fit: BoxFit.contain));
     }
-    return ListTile(
-        leading: const Icon(Icons.insert_drive_file_outlined),
-        title: Text(draft.name),
-        subtitle: draft.bytes == null ? null : Text('${draft.bytes} B'));
+    return _fileDraftView(draft);
   }
-}
 
-/// 使用播放器实测时长，避免相册整数 duration 丢失小数或返回 0。
-Future<double> inspectAttachmentVideo(String path) async {
-  final player = VideoPlayerController.file(File(path));
-  try {
-    await player.initialize().timeout(const Duration(seconds: 15));
-    final seconds = player.value.duration.inMilliseconds / 1000;
-    if (seconds <= 0 || !seconds.isFinite) {
-      throw const FormatException('video_duration');
-    }
-    return seconds;
-  } finally {
-    await player.dispose();
+  Widget _fileDraftView(MediaAttachmentDraft draft) {
+    final extension = draft.name.split('.').last.toLowerCase();
+    final icon =
+        const ['mp4', 'mov', 'avi', 'mkv', 'webm', '3gp'].contains(extension)
+            ? Icons.video_file_rounded
+            : Icons.description_rounded;
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF6F8FB),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(children: [
+        Container(
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(
+            color: CommonColor.primaryColor.withValues(alpha: .1),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, color: CommonColor.primaryColor, size: 28),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(draft.name,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style:
+                      const TextStyle(fontSize: 15, color: Color(0xFF222222))),
+              if (draft.bytes != null) ...[
+                const SizedBox(height: 4),
+                Text(MediaMessageMetadata.formatFileSize(draft.bytes!),
+                    style: const TextStyle(
+                        fontSize: 13, color: Color(0xFF888888))),
+              ],
+            ],
+          ),
+        ),
+      ]),
+    );
   }
 }

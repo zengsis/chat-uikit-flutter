@@ -2,15 +2,18 @@ import 'package:tencent_cloud_chat_sdk/tencent_im_sdk_plugin.dart';
 import 'package:tencent_cloud_chat_uikit/business_logic/view_models/tui_chat_global_model.dart';
 import 'package:tencent_chat_i18n_tool/tencent_chat_i18n_tool.dart';
 import 'dart:io';
-import 'package:fc_native_video_thumbnail/fc_native_video_thumbnail.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:tencent_cloud_chat_uikit/business_logic/separate_models/tui_chat_separate_view_model.dart';
-import 'package:tencent_cloud_chat_uikit/ui/utils/media_message_text.dart';
+import 'package:tencent_cloud_chat_uikit/ui/utils/media_message_metadata.dart';
+import 'package:tencent_cloud_chat_uikit/ui/utils/media_message_source.dart';
+import 'package:tencent_cloud_chat_uikit/ui/utils/logger.dart';
 import 'package:tencent_cloud_chat_uikit/ui/widgets/media_attachment_draft.dart';
+import 'package:tencent_cloud_chat_uikit/ui/widgets/im_album_picker_config.dart';
+import 'package:tencent_cloud_chat_uikit/ui/utils/media_message_text.dart';
 import 'package:wechat_assets_picker/wechat_assets_picker.dart';
 
 /// 选择器到待发送区的适配，文件入口始终创建文件附件。
@@ -26,8 +29,17 @@ class MobileAttachmentPicker {
     final revision = model.globalModel.sessionRevision;
     final login = await sdk.getLoginUser();
     if (!context.mounted || login.code != 0 || login.data == null) return;
+    Future<bool> current() async {
+      final user = await sdk.getLoginUser();
+      return context.mounted &&
+          model.globalModel.sessionRevision == revision &&
+          user.code == 0 &&
+          user.data == login.data &&
+          model.conversationID == conversation &&
+          model.globalModel.currentSelectedConv == conversation;
+    }
+
     final drafts = <MediaAttachmentDraft>[];
-    var invalidVideo = false;
     var tooLarge = false;
     try {
       final selected = await _pick(context, source);
@@ -45,32 +57,35 @@ class MobileAttachmentPicker {
           drafts.add(item);
           continue;
         }
-        try {
-          drafts.add(await _video(item));
-        } catch (_) {
-          invalidVideo = true;
-        }
+        drafts.add(await _video(item));
       }
-      final current = await sdk.getLoginUser();
-      if (!context.mounted ||
-          model.globalModel.sessionRevision != revision ||
-          current.data != login.data ||
-          model.conversationID != conversation) {
-        return;
-      }
-      if (invalidVideo || tooLarge) {
+      if (!await current() || !context.mounted) return;
+      if (tooLarge) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text(
-          invalidVideo
-              ? mediaMessageText('unplayable',
-                  locale: Localizations.localeOf(context).toString())
-              : TIM_t('文件大小超出了限制'),
+          TIM_t('文件大小超出了限制'),
         )));
       }
-      await showMediaAttachmentDrafts(
-          context, model, conversation, type, drafts);
-    } catch (_) {
-      if (context.mounted) {
+      if (source == 'gallery') {
+        final failures = await sendMediaAttachmentBatch(
+            model, conversation, type, drafts,
+            current: current);
+        if (failures > 0 && await current() && context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text(mediaMessageText('failed',
+                  locale: Localizations.localeOf(context).toString()))));
+        }
+      } else {
+        await showMediaAttachmentDrafts(
+            context, model, conversation, type, drafts);
+      }
+    } catch (error) {
+      outputLogger.i('scope=im.media event=attachment_prepare_failed '
+          'error_type=${error.runtimeType}');
+      if (context.mounted &&
+          model.globalModel.sessionRevision == revision &&
+          model.conversationID == conversation &&
+          model.globalModel.currentSelectedConv == conversation) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(TIM_t('文件处理异常'))));
       }
@@ -100,44 +115,53 @@ class MobileAttachmentPicker {
               video ? MediaAttachmentKind.video : MediaAttachmentKind.image)
       ];
     }
-    final assets = await AssetPicker.pickAssets(context);
+    final assets = await pickIMAlbumAssets(context);
     final drafts = <MediaAttachmentDraft>[];
     for (final asset in assets ?? <AssetEntity>[]) {
-      final file = await asset.originFile;
-      if (file == null) continue;
       if (asset.type != AssetType.image && asset.type != AssetType.video) {
         continue;
       }
+      final file = await asset.originFile;
+      if (file == null) continue;
+      final video = asset.type == AssetType.video;
       drafts.add(MediaAttachmentDraft(
           file.path,
           asset.title ?? p.basename(file.path),
-          asset.type == AssetType.video
-              ? MediaAttachmentKind.video
-              : MediaAttachmentKind.image));
+          video ? MediaAttachmentKind.video : MediaAttachmentKind.image,
+          seconds: video
+              ? MediaMessageMetadata.positiveSeconds(asset.duration)
+              : null,
+          snapshot: video ? await _albumSnapshot(asset) : null));
     }
     return drafts;
   }
 
   static Future<MediaAttachmentDraft> _video(
       MediaAttachmentDraft source) async {
-    final seconds = await inspectAttachmentVideo(source.path);
-    String? snapshot;
-    // 封面失败仍允许发送视频，接收端会显示占位与播放按钮。
-    try {
-      final directory = await getTemporaryDirectory();
-      final path = p.join(
-          directory.path, 'im-${DateTime.now().microsecondsSinceEpoch}.jpg');
-      final ok = await FcNativeVideoThumbnail().getVideoThumbnail(
-          srcFile: source.path,
-          destFile: path,
-          format: 'jpeg',
-          width: 1280,
-          height: 1280,
-          quality: 85);
-      if (ok && await File(path).exists()) snapshot = path;
-    } catch (_) {/* 媒体本身已通过播放器校验。 */}
+    final seconds = await inspectAttachmentVideo(source.path,
+        fallbackSeconds: source.seconds);
+    final snapshot =
+        await prepareVideoSnapshot(source.path, existing: source.snapshot);
     return MediaAttachmentDraft(
         source.path, source.name, MediaAttachmentKind.video,
         seconds: seconds, snapshot: snapshot, bytes: source.bytes);
+  }
+
+  static Future<String?> _albumSnapshot(AssetEntity asset) async {
+    try {
+      final data = await asset
+          .thumbnailDataWithSize(const ThumbnailSize(640, 360))
+          .timeout(const Duration(seconds: 10));
+      if (data == null || data.isEmpty) return null;
+      final directory = await getTemporaryDirectory();
+      final path = p.join(
+          directory.path, 'im-${DateTime.now().microsecondsSinceEpoch}.jpg');
+      await File(path).writeAsBytes(data, flush: true);
+      return path;
+    } catch (error) {
+      outputLogger.i('scope=im.media event=album_cover_fallback '
+          'error_type=${error.runtimeType}');
+      return null;
+    }
   }
 }
